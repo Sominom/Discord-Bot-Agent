@@ -1,0 +1,12 @@
+{
+    "OPENAI_MODEL": "gpt-4o",
+    "OPENAI_API_KEY": "",
+    "DISCORD_BOT_KEY": "",
+    "GOOGLE_API_KEY": "",
+    "CUSTOM_SEARCH_ENGINE_ID": "",
+    "HISTROY_NUM": 3,
+    "CHAT_CHANNELS": [
+        1242015921829187585,
+        1241656697882284144
+    ]
+}
