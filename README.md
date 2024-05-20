@@ -22,6 +22,10 @@ chmod +x *.py
 ./start.sh
 ```
 
+# 세팅
+```
+원하는 채팅 채널에서 /addchatchannel 커맨드를 입력한 뒤 사용
+```
 ![image](https://github.com/SolusJ/Discord_GPT4o/assets/36412182/b540a65c-9e4d-4947-bc95-e8fc07d16d2d)
 
 ![image](https://github.com/SolusJ/Discord_GPT4o/assets/36412182/1d315839-0cfe-43e8-9258-ea808d1af561)
