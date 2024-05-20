@@ -5,12 +5,13 @@ Discord bot. img2img, image analysis, chat, image creation
 ![image](https://github.com/SolusJ/Discord_GPT4o/assets/36412182/2c4a0e8d-009a-4636-9524-3d09888e23d3)
 
 # 설정(필수)
-- ./data/config.json
-    "OPENAI_API_KEY": your key,
-    "DISCORD_BOT_KEY": your key,
-    "GOOGLE_API_KEY": your key,
-    "CUSTOM_SEARCH_ENGINE_ID": your key,
-
+./data/config.json
+```
+"OPENAI_API_KEY": your key,
+"DISCORD_BOT_KEY": your key,
+"GOOGLE_API_KEY": your key,
+"CUSTOM_SEARCH_ENGINE_ID": your key,
+```
 # 설치 및 실행 (Linux)
 ```
 cd Discord_GPT4o
