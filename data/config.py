@@ -1,6 +1,7 @@
 import json
 from data.bot_logger import BotLogger
 from data.translate import Translate
+import re
 
 Logger = BotLogger()
 
@@ -27,43 +28,57 @@ class Config:
 
     @property
     def openai_model(self) -> list[str]:
-        config = self.config
-        return config.get("OPENAI_MODEL", [])
+        config = self.config.get("OPENAI_MODEL", "")
+        if not config:
+            Logger.log(f"{self.ts.text('OpenAI model not found.')}", Logger.CRITICAL)
+        return config
     
     @property
     def chat_channels(self) -> list[str]:
-        config = self.config
-        return config.get("CHAT_CHANNELS", [])
+        config = self.config.get("CHAT_CHANNELS", [])
+        if not config:
+            Logger.log(f"{self.ts.text('Chat channels not found.')}", Logger.ERROR)
+        return config
     
     @property
     def discord_bot_key(self) -> str:
-        config = self.config
-        return config.get("DISCORD_BOT_KEY", "")
+        config = self.config.get("DISCORD_BOT_KEY", "")
+        if not config:
+            Logger.log(f"{self.ts.text('Discord bot key not found.')}", Logger.CRITICAL)
+        return config
     
     @property
     def openai_api_key(self) -> str:
-        config = self.config
-        return config.get("OPENAI_API_KEY", "")
+        config = self.config.get("OPENAI_API_KEY", "")
+        if not config:
+            Logger.log(f"{self.ts.text('OpenAI API key not found.')}", Logger.CRITICAL)
+        return config
     
     @property
     def google_api_key(self) -> str:
-        config = self.config
-        return config.get("GOOGLE_API_KEY", "")
+        config = self.config.get("GOOGLE_API_KEY", "")
+        if not config:
+            Logger.log(f"{self.ts.text('Google API key not found.')}", Logger.CRITICAL)
+        return config
     
     @property
     def custom_search_engine_id(self) -> str:
-        config = self.config
-        return config.get("CUSTOM_SEARCH_ENGINE_ID", "")
+        config = self.config.get("CUSTOM_SEARCH_ENGINE_ID", "")
+        if not config:
+            Logger.log(f"{self.ts.text('Custom search engine ID not found.')}", Logger.CRITICAL)
 
     @property
     def forbidden_search_keywords(self) -> list[str]:
-        search_config = self.search_config
-        return search_config.get("FORBIDDEN_SEARCH_KEYWORDS", [])
+        search_config = self.search_config.get("FORBIDDEN_SEARCH_KEYWORDS", [])
+        if not search_config:
+            Logger.log(f"{self.ts.text('Forbidden search keywords not found.')}", Logger.ERROR)
     
     @property
     def forbidden_domains(self) -> list[str]:
-        search_config = self.search_config
-        return search_config.get("FORBIDDEN_DOMAINS", [])
+        search_config = self.search_config.get("FORBIDDEN_DOMAINS", [])
+        if not search_config:
+            Logger.log(f"{self.ts.text('Forbidden domains not found.')}", Logger.ERROR)
+        return search_config
     
     @property
     def history_num(self) -> int:

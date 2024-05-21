@@ -6,5 +6,9 @@
     "The current channel has been deleted from the conversation channel:": "현재 채널이 대화 채널에서 삭제되었습니다:",
     "The current channel has been added to the Conversation Channel:": "현재 채널이 대화 채널에 추가되었습니다:",
     "I'll clean the chat room.": "채팅방을 청소하겠습니다.",
-    ". . .": ". . ."
+    ". . .": ". . .",
+    "OpenAI API key not found.": "OpenAI API key not found.",
+    "Custom search engine ID not found.": "Custom search engine ID not found.",
+    "Google API key not found.": "Google API key not found.",
+    "Discord bot key not found.": "Discord bot key not found."
 }

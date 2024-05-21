@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 config.json
 venv/
+bot.log
 
 
 # C extensions
