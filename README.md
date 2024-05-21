@@ -14,7 +14,7 @@ Discord bot. img2img, image analysis, chat, image creation
 ```
 # 설치 및 실행 (Linux)
 ```
-cd Discord_GPT4o
+cd Interactive-GPT-Discord-Bot
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
