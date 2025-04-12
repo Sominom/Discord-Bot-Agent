@@ -1,9 +1,11 @@
 import discord
 from discord.ext import commands
 import traceback
+import asyncio
 from discord import app_commands
 from core.logger import logger
 from core.config import env
+from services.mcp import set_discord_client, run_mcp_server
 
 # 봇 클래스 정의
 class InteractiveGPTBot(commands.Bot):
@@ -22,7 +24,7 @@ class InteractiveGPTBot(commands.Bot):
         if self.owner_id is not None:
             self.logger.log(f'봇 소유자 ID 설정: {self.owner_id}')
         else:
-            self.logger.log('DISCORD_OWNER_ID가 .env 파일에 없거나 유효하지 않습니다.', self.logger.WARN)
+            self.logger.log('DISCORD_OWNER_ID가 .env 파일에 없거나 유효하지 않습니다.', self.logger.ERROR)
 
     async def setup_hook(self):
         # 확장 기능(Cogs) 로드
@@ -34,9 +36,15 @@ class InteractiveGPTBot(commands.Bot):
                 self.logger.log(f'확장 기능 로드 실패: {extension}\n{str(e)}', self.logger.ERROR)
                 traceback.print_exc()
         
+        
+        # MCP 서버 시작
+        self.logger.log('MCP 서버 시작')
+        asyncio.create_task(run_mcp_server())
+        
+        
         # 글로벌 명령어 동기화
-        self.logger.log('글로벌 명령어 동기화 시작')
         try:
+            self.logger.log('글로벌 명령어 동기화 시작')
             synced_commands = await self.tree.sync()
             self.logger.log(f'글로벌 명령어 동기화 완료: {len(synced_commands)}개 명령어 동기화됨')
         except Exception as e:
@@ -46,6 +54,10 @@ class InteractiveGPTBot(commands.Bot):
 
     async def on_ready(self):
         self.logger.log(f'{self.user} 로그인 완료')
+        
+        # MCP에 디스코드 클라이언트 설정
+        set_discord_client(self)
+        
         await self.change_presence(activity=discord.Activity(
             type=discord.ActivityType.listening,
             name="대화 요청"

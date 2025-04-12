@@ -2,15 +2,18 @@ import discord
 from discord.ext import commands
 import traceback
 from discord import app_commands
-from services.gpt import chat
+from services.claude import chat_with_claude
+from services.message_judgment import is_message_for_bot
 from core.config import env
 from services.database import db
 
 class ChatCommands(commands.Cog):
-    """사용자 메시지 처리 및 GPT 응답 관련 명령어"""
+    """사용자 메시지 처리 및 AI 응답 관련 명령어"""
     
     def __init__(self, bot):
         self.bot = bot
+        # 메시지 처리 임계값 - 이 값 이상의 확률이면 봇 대상으로 판단
+        self.confidence_threshold = 0.6
     
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -48,19 +51,59 @@ class ChatCommands(commands.Cog):
         # 메시지 처리
         user = message.author
         
-        async with channel.typing():
-            try:
-                # 닉네임이 없으면 유저명 사용
-                server_name = user.nick
-                if server_name is None:
-                    server_name = user.name
-                    
-                # GPT에 메시지 전달 (message 객체와 필요한 정보 전달)
-                await chat(message, server_name, text, image_mode, image_url)
-            except Exception as err:
-                # message.reply 사용하여 응답
-                await message.reply(f"에러입니다.\n{str(err)}")
-                traceback.print_exc()
+        # 닉네임이 없으면 유저명 사용
+        server_name = user.nick
+        if server_name is None:
+            server_name = user.name
+                
+        # 최근 메시지 5개 가져오기
+        recent_messages = []
+        try:
+            # 현재 채널에서 최근 메시지 6개 가져오기 (현재 메시지 포함)
+            async for msg in channel.history(limit=6):
+                # 현재 메시지는 제외
+                if msg.id == message.id:
+                    continue
+                
+                # 시스템 메시지 제외
+                if msg.type != discord.MessageType.default:
+                    continue
+                
+                # 메시지 정보 저장
+                recent_messages.append({
+                    "message_id": msg.id,
+                    "content": msg.content,
+                    "author": msg.author.nick if msg.author.nick else msg.author.name,
+                    "is_bot": msg.author.bot
+                })
+                
+                # 최대 5개만 저장
+                if len(recent_messages) >= env.MAX_HISTORY_COUNT:
+                    break
+            
+            # 시간 순서대로 정렬 (오래된 메시지가 먼저 오도록)
+            recent_messages.reverse()
+        except Exception as e:
+            # 메시지 히스토리 가져오기 실패 시 무시하고 진행
+            recent_messages = []
+            
+        # 메시지가 봇에게 보내는 것인지 판단 (OpenAI)
+        is_for_bot, confidence = await is_message_for_bot(
+            message_content=text,
+            username=server_name,
+            bot_name=self.bot.user.name,
+            recent_messages=recent_messages
+        )
+                
+        # 봇에게 보내는 메시지로 판단된 경우
+        if channel.id in chat_channels and (is_for_bot or confidence >= self.confidence_threshold):
+            async with channel.typing():
+                try:
+                    # Claude와 MCP를 사용하여 메시지 응답
+                    await chat_with_claude(message, server_name, text, image_mode, image_url)
+                except Exception as err:
+                    await message.reply(f"에러입니다.\n{str(err)}")
+                    traceback.print_exc()
     
     @app_commands.command(name="clear", description="채팅 방을 청소합니다")
     @app_commands.guild_only()

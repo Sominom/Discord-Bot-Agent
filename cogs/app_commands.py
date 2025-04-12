@@ -17,8 +17,8 @@ class AdminCommands(commands.Cog):
         """현재 채널을 GPT 대화 채널 목록에 추가합니다"""
         await interaction.response.defer(ephemeral=True)
 
-        # 관리자 권한 확인
-        if not interaction.user.guild_permissions.administrator:
+        # 관리자 또는 봇 소유자 권한 확인
+        if not (interaction.user.guild_permissions.administrator or interaction.user.id == env.DISCORD_OWNER_ID):
             await interaction.followup.send("관리자 권한이 필요합니다.")
             return
             
@@ -40,8 +40,8 @@ class AdminCommands(commands.Cog):
         """현재 채널을 GPT 대화 채널 목록에서 제거합니다"""
         await interaction.response.defer(ephemeral=True)
 
-        # 관리자 권한 확인
-        if not interaction.user.guild_permissions.administrator:
+        # 관리자 또는 봇 소유자 권한 확인
+        if not (interaction.user.guild_permissions.administrator or interaction.user.id == env.DISCORD_OWNER_ID):
             await interaction.followup.send("관리자 권한이 필요합니다.")
             return
             
@@ -61,8 +61,8 @@ class AdminCommands(commands.Cog):
         """등록된 모든 GPT 대화 채널을 확인합니다"""
         await interaction.response.defer(ephemeral=True)
 
-        # 관리자 권한 확인 
-        if not interaction.user.guild_permissions.administrator:
+        # 관리자 또는 봇 소유자 권한 확인
+        if not (interaction.user.guild_permissions.administrator or interaction.user.id == env.DISCORD_OWNER_ID):
             await interaction.followup.send("관리자 권한이 필요합니다.")
             return
             

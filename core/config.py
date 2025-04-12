@@ -1,7 +1,11 @@
 from core.logger import Logger
 import json
 import os
+import logging
+from dotenv import load_dotenv
 
+# .env 파일 로드
+load_dotenv()
 
 logger = Logger()
 
@@ -24,5 +28,5 @@ class Config:
         except Exception as e:
             logger.log(f"설정 파일 로드 중 오류 발생: {str(e)}", logger.ERROR)
             raise
-
+        
 env = Config()
