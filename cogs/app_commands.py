@@ -3,55 +3,52 @@ import discord
 from discord.ext import commands
 from data.config import Config
 from discord import app_commands
-from data.translate import Translate
-
 class AppCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.config = Config()
-        self.ts = Translate()
         
     async def cog_load(self):
         self.bot.tree.add_command(app_commands.Command(
             name="addchatchannel",
-            description=self.ts.text("Add the current channel to the conversation channel."),
+            description="현재 채널을 대화 채널에 추가합니다.",
             callback=self.addchatchannel
         ))
         
         self.bot.tree.add_command(app_commands.Command(
             name="removechatchannel",
-            description=self.ts.text("Delete the current channel from the conversation channel."),
+            description="현재 채널을 대화 채널에서 제거합니다.",
             callback=self.removechatchannel
         ))
         
         self.bot.tree.add_command(app_commands.Command(
             name="clear",
-            description=self.ts.text("Cleaning the chat room"),
+            description="채팅 방을 청소합니다.",
             callback=self.clear
         ))
         
         self.bot.tree.add_command(app_commands.Command(
             name="historylimit",
-            description=self.ts.text("Number of recent conversations to send to prompts"),
+            description="프롬프트에 전송할 최근 대화 수를 설정합니다.",
             callback=self.historylimit
         ))
         
     
     async def addchatchannel(self, interaction: discord.Interaction):
         self.config.add_chat_channel(interaction.channel.id)
-        await interaction.response.send_message(f"{self.ts.text('The current channel has been added to the Conversation Channel:')} {interaction.channel}")
+        await interaction.response.send_message(f"현재 채널이 대화 채널에 추가되었습니다: {interaction.channel}")
         
     async def removechatchannel(self, interaction: discord.Interaction):
         self.config.delete_chat_channel(interaction.channel.id)
-        await interaction.response.send_message(f"{self.ts.text('The current channel has been deleted from the conversation channel:')} {interaction.channel}")
+        await interaction.response.send_message(f"현재 채널이 대화 채널에서 제거되었습니다: {interaction.channel}")
         
     async def historylimit(self, interaction: discord.Interaction, historylimit: int):
         self.config.history_num = historylimit
-        await interaction.response.send_message(f"{self.ts.text('Number of conversations to remember has been set:')} {historylimit}")
+        await interaction.response.send_message(f"최근 대화 수를 설정했습니다: {historylimit}")
 
     async def clear(self, interaction: discord.Interaction):
         if interaction.channel is not None:
-            await interaction.response.send_message(self.ts.text("I'll clean the chat room."))
+            await interaction.response.send_message("채팅 방을 청소합니다.")
             await interaction.channel.purge(limit=4096)
             await asyncio.sleep(1)
         return

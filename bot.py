@@ -28,11 +28,11 @@ async def on_ready():
         logger.log(f'Loading {extension}')
         await bot.load_extension(extension)
     await bot.tree.sync()
-    print(f'We have logged in as {bot.user}')
+    logger.log(f'{bot.user} 로그인 완료')
 
 @bot.event
 async def on_connect():
-    print(f"{bot.user.name} connected.")
+    logger.log(f"{bot.user} 연결 완료")
 
 @bot.event
 async def on_message(message):

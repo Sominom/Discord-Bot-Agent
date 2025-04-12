@@ -2,7 +2,6 @@ import discord
 from discord.ext import commands
 
 from data.config import Config
-from data.translate import Translate
 
 config = Config()
 ts = Translate()
@@ -32,7 +31,7 @@ async def prompt_to_chat(ctx, username, prompt):
             conversation.append({"role": "assistant", "content": f"{chat.content}"})
         else:
             if chat.attachments:
-                conversation.append({"role": "user", "content": f"{server_name}: [{ts.text('Photo')}] {chat.content}"})
+                conversation.append({"role": "user", "content": f"{server_name}: [사진] {chat.content}"})
             else:
                 conversation.append({"role": "user", "content": f"{server_name}: {chat.content}"})
     conversation = conversation[::-1]

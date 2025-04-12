@@ -4,7 +4,6 @@ import traceback
 import json
 import datetime
 import re
-from data.translate import Translate
 from data.config import Config
 from data.bot_logger import BotLogger
 from data.prompts import system_prompts
@@ -28,11 +27,11 @@ async def image_generate(prompt: str, size: int, ctx=None):
         data: list = response.data
         for index, image in enumerate(data):
             title = f"{prompt}"
-            embed = create_image_embed(title, prompt, image.url)  # Fix the subscriptable error here
-        await ctx.edit(content=f"{ts.text('I drew a picture for you.')} {prompt}", embed=embed)
+            embed = create_image_embed(title, prompt, image.url)
+        await ctx.edit(content=f"이미지를 생성했습니다. {prompt}", embed=embed)
     except Exception as err:
         traceback.print_exc()
-        await ctx.edit(content=f"{ts.text('An error occurred while creating a picture.')} {str(err)}")
+        await ctx.edit(content=f"이미지를 생성하는데 오류가 발생했습니다. {str(err)}")
 
 available_functions = {
     "search_and_crawl": search_and_crawl,
@@ -122,13 +121,13 @@ async def gpt_function_call(function_name, function_args, reply_message, ctx, us
     if function_name in available_functions:
         if function_name == "search_and_crawl":
             args = json.loads(function_args)
-            await reply_message.edit(content=f"{args['keyword']} {ts.text('Searching...')}")
+            await reply_message.edit(content=f"{args['keyword']} 검색중...")
             function_result = await available_functions[function_name](args['keyword'])
             if function_result is None:
-                function_result = ts.text('Search results not found.')
+                function_result = "검색 결과를 찾을 수 없습니다."
             await chat(ctx, username, prompt, False, "", True, function_name, function_result, reply_message)
         elif function_name == "image_generate":
             args = json.loads(function_args)
-            await reply_message.edit(content=f"{args['prompt']} {ts.text('Drawing...')}")
+            await reply_message.edit(content=f"{args['prompt']} 이미지 생성중...")
             await available_functions[function_name](args['prompt'], args['size'], reply_message)
 

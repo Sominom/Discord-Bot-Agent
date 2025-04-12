@@ -10,11 +10,9 @@ from bs4 import BeautifulSoup
 from chardet import detect
 from data.config import Config
 from data.bot_logger import BotLogger
-from data.translate import Translate
 
 config = Config()
-Logger = BotLogger()
-ts = Translate()
+logger = BotLogger()
 
 executor = ThreadPoolExecutor(max_workers=1)
 custom_search_engine_id = config.custom_search_engine_id
@@ -32,6 +30,7 @@ async def search_google(query, forbidden_domains=[], forbidden_search_keywords=[
         query =  query + " " + forbidden_domains + " " + forbidden_search_keywords
         encoded_query = urllib.parse.quote(str(query))
         query_list.append(encoded_query)
+
     elif isinstance(query, list):
         for q in query:
             q =  q + " " + forbidden_domains + " " + forbidden_search_keywords
@@ -44,9 +43,10 @@ async def search_google(query, forbidden_domains=[], forbidden_search_keywords=[
         query_list.append(encoded_query)
         
     returnResult = []
+    
     for q in query_list:
         url = f"https://www.googleapis.com/customsearch/v1?cx={custom_search_engine_id}&key={google_api_key}&q={q}&num={search_num}"
-        Logger.log(f"Search: {url}")
+        logger.log(f"Search: {url}")
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
                 result = await response.text()
@@ -56,7 +56,7 @@ async def search_google(query, forbidden_domains=[], forbidden_search_keywords=[
                 filtered_items = [item for item in result['items']]
                 returnResult = filtered_items
         except Exception as e:
-            Logger.log(f"{ts.text('Search result parsing failed')} {str(e)}", Logger.ERROR)
+            logger.log(f"검색 결과 파싱 실패 {str(e)}", logger.ERROR)
             return None
     return returnResult
 
@@ -83,7 +83,7 @@ async def crawl_website(session, url, timeout_seconds=15):
             return None
         return text
     except Exception:
-        Logger.log(f"{ts.text('Crawling failed')} {url}", Logger.ERROR)
+        logger.log(f"크롤링 실패 {url}", logger.ERROR)
         return None
 
 async def search_and_crawl(keyword):
@@ -93,7 +93,7 @@ async def search_and_crawl(keyword):
         search_result = ""
         async with aiohttp.ClientSession() as session:
             for search_item in search_urls:
-                Logger.log(f"{ts.text('Search item: ')}{search_item['link']}")
+                logger.log(f"검색 결과: {search_item['link']}")
                 task = asyncio.ensure_future(crawl_website(session, search_item['link']))
                 tasks.append(task)
             responses = await asyncio.gather(*tasks)
@@ -102,7 +102,7 @@ async def search_and_crawl(keyword):
                 if response:
                     search_result += f"{i}. {response}\n"
                     i += 1
-        #Logger.log(f"{ts.text('Crawling result:')} {search_result}")
+        logger.log(f"크롤링 결과: {search_result}", logger.INFO)
         return search_result
     else:
         return None

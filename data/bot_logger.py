@@ -56,7 +56,7 @@ class LogHandler(logging.Handler):
     def emit(self, record):
         self.logger.process_log(record)
 
-# 예제 사용
+# 예제
 if __name__ == "__main__":
     logger = BotLogger()
     logger.log("This is a debug message", logger.DEBUG)

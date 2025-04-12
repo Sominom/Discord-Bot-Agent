@@ -1,6 +1,5 @@
 import json
 from data.bot_logger import BotLogger
-from data.translate import Translate
 
 Logger = BotLogger()
 
@@ -8,7 +7,6 @@ class Config:
     def __init__(self):
         self.config_file_path: str = "data/config.json"
         self.search_config_file_path: str = "data/search_config.json"
-        self.ts = Translate()
 
     def add_chat_channel(self, channel_id: str) -> None:
         config = self.config
@@ -84,13 +82,13 @@ class Config:
                 config = json.load(f)
             return config
         except FileNotFoundError as e:
-            Logger.log(f"{self.ts.text('Configuration file not found.')}\n{str(e)}", Logger.ERROR)
+            Logger.log(f"설정 파일을 찾을 수 없습니다.\n{str(e)}", Logger.ERROR)
             return {}
         except json.JSONDecodeError as e:
-            Logger.log(f"{self.ts.text('An error occurred while parsing the configuration file.')}\n{str(e)}", Logger.ERROR)
+            Logger.log(f"설정 파일을 파싱할 수 없습니다.\n{str(e)}", Logger.ERROR)
             return {}
         except Exception as e:
-            Logger.log(f"{self.ts.text('An error occurred while reading the configuration file.')}\n{str(e)}", Logger.ERROR)
+            Logger.log(f"설정 파일을 읽을 수 없습니다.\n{str(e)}", Logger.ERROR)
             return {}
 
     @config.setter
@@ -99,11 +97,11 @@ class Config:
             with open(self.config_file_path, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=4, ensure_ascii=False)
         except FileNotFoundError as e:
-            Logger.log(f"{self.ts.text('Configuration file not found.')}\n{str(e)}", Logger.ERROR)
+            Logger.log(f"설정 파일을 찾을 수 없습니다.\n{str(e)}", Logger.ERROR)
         except json.JSONDecodeError as e:
-            Logger.log(f"{self.ts.text('An error occurred while parsing the configuration file.')}\n{str(e)}", Logger.ERROR)
+            Logger.log(f"설정 파일을 파싱할 수 없습니다.\n{str(e)}", Logger.ERROR)
         except Exception as e:
-            Logger.log(f"{self.ts.text('An error occurred while writing the configuration file.')}\n{str(e)}", Logger.ERROR)
+            Logger.log(f"설정 파일을 쓸 수 없습니다.\n{str(e)}", Logger.ERROR)
             
     @property
     def search_config(self) -> dict:
@@ -112,12 +110,12 @@ class Config:
                 config = json.load(f)
             return config
         except FileNotFoundError as e:
-            Logger.log(f"{self.ts.text('Search configuration file not found.')}\n{str(e)}", Logger.ERROR)
+            Logger.log(f"검색 설정 파일을 찾을 수 없습니다.\n{str(e)}", Logger.ERROR)
             return {}
         except json.JSONDecodeError as e:
-            Logger.log(f"{self.ts.text('An error occurred while parsing the search configuration file.')}\n{str(e)}", Logger.ERROR)
+            Logger.log(f"검색 설정 파일을 파싱할 수 없습니다.\n{str(e)}", Logger.ERROR)
             return {}
         except Exception as e:
-            Logger.log(f"{self.ts.text('An error occurred while reading the search configuration file.')}\n{str(e)}", Logger.ERROR)
+            Logger.log(f"검색 설정 파일을 읽을 수 없습니다.\n{str(e)}", Logger.ERROR)
             return {}
         
