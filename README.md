@@ -33,16 +33,13 @@ chmod +x start.sh
 - `/addchatchannel` - 현재 채널을 대화 채널로 추가
 - `/removechatchannel` - 현재 채널을 대화 채널에서 제거
 - `/listchannels` - 대화 채널 목록 표시
-- `/reload [extension]` - 봇 확장 기능 다시 로드
 
 ### GPT 서비스 명령어
 - `/image [prompt] [size]` - DALL-E로 이미지 생성
-- `/setmodel [model]` - GPT 모델 변경
-- `/modinfo` - 현재 GPT 모델 정보 확인
 
 ### 채팅 명령어
 - `/clear [amount]` - 채팅방 메시지 청소
-- `/historylimit [limit]` - 대화 기록 제한 설정
+
 
 ## 스크린샷
 ![채팅 기능](https://github.com/SolusJ/Discord_GPT4o/assets/36412182/b540a65c-9e4d-4947-bc95-e8fc07d16d2d)
