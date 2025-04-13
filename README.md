@@ -151,3 +151,11 @@ python bot.py
     *   도구 사용 루프가 종료되면 (도구 호출이 더 이상 없거나 최대 라운드 도달), 마지막으로 받은 텍스트 응답이 Discord에 표시됩니다.
     *   만약 텍스트 응답 없이 도구 실행만 완료된 경우, "도구 실행은 완료되었지만 응답이 없습니다."와 같은 메시지를 표시합니다.
     *   API 호출 또는 도구 실행 중 오류가 발생하면 해당 오류 메시지를 Discord에 표시하고 처리를 중단합니다.
+
+## 스크린샷
+![image](https://github.com/user-attachments/assets/b86ab831-cf85-4e0b-a697-c5255451ef95)
+![image](https://github.com/user-attachments/assets/9725fbee-d2b3-49fc-a16b-1dd51a1ae48e)
+![image](https://github.com/user-attachments/assets/be0d5b6e-9b5a-4817-9838-d257261dec06)
+![image](https://github.com/user-attachments/assets/f9323fc7-1c1f-4dac-afc7-3eeda989a4ef)
+
+
