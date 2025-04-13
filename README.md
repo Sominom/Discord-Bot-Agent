@@ -27,11 +27,11 @@ DISCORD_OWNER_ID=your_discord_id
 OPENAI_API_KEY=your_openai_api_key
 CLAUDE_API_KEY=your_claude_api_key
 
-# 모델 설정 (선택사항)
+# 모델 설정 (GPT 모델은 system 프롬프트가 지원되는 모델이어야 합니다. -- 추후 수정 예정)
 OPENAI_MODEL=gpt-4-turbo
 CLAUDE_MODEL=claude-3-opus-20240229
 
-# 데이터베이스 설정 (선택사항)
+# 데이터베이스 설정
 DATABASE_URL=sqlite:///bot.db
 ```
 
