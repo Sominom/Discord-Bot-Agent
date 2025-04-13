@@ -5,7 +5,7 @@ from core.logger import logger
 from core.config import env
 
 class Database:
-    """데이터베이스 연결 및 작업을 위한 클래스"""
+    
     
     def __init__(self):
         self.connection = None
@@ -13,7 +13,7 @@ class Database:
         self.setup_tables()
     
     def connect(self):
-        """데이터베이스에 연결"""
+        
         try:
             self.connection = mysql.connector.connect(
                 host=env.MYSQL_HOST,
@@ -28,7 +28,7 @@ class Database:
             self.connection = None
     
     def setup_tables(self):
-        """필요한 테이블 설정"""
+        
         if not self.connection:
             logger.log("데이터베이스 연결이 없어 테이블 설정을 건너뜁니다.", logger.WARNING)
             return
@@ -62,7 +62,7 @@ class Database:
             logger.log(f"테이블 설정 오류: {e}", logger.ERROR)
     
     def get_chat_channels(self):
-        """데이터베이스에서 채팅 채널 목록 가져오기"""
+        
         if not self.connection:
             logger.log("데이터베이스 연결이 없어 빈 채널 목록을 반환합니다.", logger.WARNING)
             return []
@@ -77,7 +77,7 @@ class Database:
             return []
     
     def add_chat_channel(self, channel_id, guild_id, name):
-        """채팅 채널 추가"""
+        
         if not self.connection:
             logger.log("데이터베이스 연결이 없어 채널을 추가할 수 없습니다.", logger.WARNING)
             return False
@@ -96,7 +96,7 @@ class Database:
             return False
     
     def delete_chat_channel(self, channel_id):
-        """채팅 채널 삭제"""
+        
         if not self.connection:
             logger.log("데이터베이스 연결이 없어 채널을 삭제할 수 없습니다.", logger.WARNING)
             return False
@@ -112,7 +112,7 @@ class Database:
             return False
     
     def get_setting(self, name, default=None):
-        """설정값 가져오기"""
+        
         if not self.connection:
             logger.log("데이터베이스 연결이 없어 기본값을 반환합니다.", logger.WARNING)
             return default
@@ -130,7 +130,7 @@ class Database:
             return default
     
     def set_setting(self, name, value):
-        """설정값 저장하기"""
+        
         if not self.connection:
             logger.log("데이터베이스 연결이 없어 설정을 저장할 수 없습니다.", logger.WARNING)
             return False

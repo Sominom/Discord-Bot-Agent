@@ -3,13 +3,11 @@ from discord.ext import commands
 import traceback
 from discord import app_commands
 from services.claude import chat_with_claude
-from services.message_judgment import is_message_for_bot
+from services.message_judgment import is_message_for_bot, is_conversation_ending
 from core.config import env
 from services.database import db
 
 class ChatCommands(commands.Cog):
-    """사용자 메시지 처리 및 AI 응답 관련 명령어"""
-    
     def __init__(self, bot):
         self.bot = bot
         # 메시지 처리 임계값 - 이 값 이상의 확률이면 봇 대상으로 판단
@@ -97,6 +95,18 @@ class ChatCommands(commands.Cog):
                 
         # 봇에게 보내는 메시지로 판단된 경우
         if channel.id in chat_channels and (is_for_bot or confidence >= self.confidence_threshold):
+            # 메시지가 대화를 종료하는 내용인지 판단
+            is_ending, suggested_emoji = await is_conversation_ending(text)
+            
+            # 대화 종료 메시지라면 이모지 반응 추가
+            if is_ending and suggested_emoji:
+                try:
+                    await message.add_reaction(suggested_emoji)
+                    # 추가 이모지가 필요하면 여기에 더 추가
+                except Exception as e:
+                    # 이모지 추가에 실패해도 계속 진행
+                    pass
+            
             async with channel.typing():
                 try:
                     # Claude와 MCP를 사용하여 메시지 응답
@@ -108,7 +118,7 @@ class ChatCommands(commands.Cog):
     @app_commands.command(name="clear", description="채팅 방을 청소합니다")
     @app_commands.guild_only()
     async def clear_chat(self, interaction: discord.Interaction, amount: int = 100):
-        """채팅방 메시지를 청소합니다"""
+        
         if interaction.channel is None:
             await interaction.response.send_message("유효한 채널이 아닙니다.", ephemeral=True)
             return

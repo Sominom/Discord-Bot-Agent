@@ -1,27 +1,9 @@
-"""
-봇 로깅 시스템을 제공하는 모듈
-콘솔 출력 및 파일 로깅 기능을 지원합니다.
-"""
-
 import logging
 from logging.handlers import RotatingFileHandler
 from colorama import Fore, Style
 
 class Logger:
-    """
-    봇 로깅 관리 클래스
-    콘솔 및 파일 로그를 관리합니다.
-    """
-    
     def __init__(self, log_file="bot.log", max_bytes=5*1024*1024, backup_count=5):
-        """
-        로거 초기화
-        
-        Args:
-            log_file: 로그 파일 경로
-            max_bytes: 로그 파일 최대 크기
-            backup_count: 백업 파일 개수
-        """
         self.logger = logging.getLogger('bot_logger')
         self.logger.setLevel(logging.DEBUG)
         
@@ -56,13 +38,6 @@ class Logger:
         self.CRITICAL = logging.CRITICAL
     
     def log(self, message, level=logging.INFO):
-        """
-        로그 메시지 기록
-        
-        Args:
-            message: 로그 메시지
-            level: 로그 레벨 (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        """
         if level == logging.DEBUG:
             self.logger.debug(message)
         elif level == logging.INFO:
@@ -75,12 +50,6 @@ class Logger:
             self.logger.critical(message)
     
     def process_log(self, record):
-        """
-        로그 메시지 처리 및 콘솔 출력
-        
-        Args:
-            record: 로그 레코드 객체
-        """
         # 로그 레벨별 색상 설정
         COLORS = {
             logging.DEBUG: Fore.CYAN,
@@ -100,28 +69,12 @@ class Logger:
 
 
 class LogHandler(logging.Handler):
-    """
-    커스텀 로그 핸들러
-    콘솔 출력을 담당합니다.
-    """
     
     def __init__(self, logger):
-        """
-        핸들러 초기화
-        
-        Args:
-            logger: 연결할 로거 객체
-        """
         super().__init__()
         self.logger = logger
     
     def emit(self, record):
-        """
-        로그 레코드 처리
-        
-        Args:
-            record: 로그 레코드 객체
-        """
         self.logger.process_log(record)
 
 # 싱글톤 인스턴스 생성

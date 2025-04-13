@@ -15,7 +15,7 @@ class Config:
         self.load_config()
         
     def load_config(self):
-        """설정 파일에서 환경 변수를 로드합니다."""
+        
         try:
             with open(self.config_path, 'r', encoding='utf-8') as f:
                 config_data = json.load(f)

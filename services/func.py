@@ -4,7 +4,7 @@ from core.config import env
 from services.database import db
 
 def create_image_embed(title: str, description: str, url: str):
-    """이미지 임베드를 생성합니다"""
+    
     embed = discord.Embed(
         title=title,
         description=description,
@@ -15,7 +15,7 @@ def create_image_embed(title: str, description: str, url: str):
 
 
 async def prompt_to_chat(message, username, prompt):
-    """이전 채팅 기록을 가져와 GPT 프롬프트로 변환합니다"""
+    
     conversation = []
     
     # 데이터베이스에서 설정 가져오기 (없으면 환경변수에서 가져옴)

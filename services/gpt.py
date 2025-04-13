@@ -9,14 +9,16 @@ from core.logger import logger
 from core.config import env
 from services.prompts import system_prompts
 from services.func import prompt_to_chat, create_image_embed
-from services.tools import gpt_functions
+from services.mcp import get_gpt_functions
 from services.web import search_and_crawl
+
+# gpt_functions 가져오기
+gpt_functions = get_gpt_functions()
 
 # OpenAI 클라이언트 초기화
 client = OpenAI(api_key=env.OPENAI_API_KEY)
 
 async def image_generate(prompt: str, size: int, reply_message: discord.Message):
-    """DALL-E를 사용하여 이미지를 생성합니다"""
     sizestr = ["1024x1024", "1792x1024", "1024x1792"][size]
 
     try:
@@ -42,7 +44,6 @@ available_functions = {
 }
 
 async def chat(message, username, prompt, img_mode, img_url, second_response=False, second_function_name="", second_function_result="", message_object=None):
-    """GPT와의 채팅 처리 함수"""
     # 이미지 모드인 경우 처리
     if img_mode:
         conversation = []
@@ -142,7 +143,6 @@ async def chat(message, username, prompt, img_mode, img_url, second_response=Fal
 
 
 async def gpt_function_call(function_name, function_args, reply_message, message, username, prompt):
-    """GPT가 호출한 함수 실행"""
     if function_name in available_functions:
         if function_name == "search_and_crawl":
             args = json.loads(function_args)
