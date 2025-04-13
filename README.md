@@ -1,9 +1,6 @@
-# Interactive GPT Discord Bot
-
-인공지능과 대화할 수 있는 디스코드 봇 프로젝트입니다.
+# Interactive MCP Discord Bot
 
 ## 기능
-
 - Claude와 실시간 대화
 - DALL-E를 통한 이미지 생성
 - 디스코드 채널 관리 기능 (MCP 통합)
