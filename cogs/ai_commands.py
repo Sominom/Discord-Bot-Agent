@@ -8,8 +8,6 @@ from services.database import db
 from services.claude import image_generate
 
 class AICommands(commands.Cog):
-    """AI 관련 서비스 명령어"""
-    
     def __init__(self, bot):
         self.bot = bot
     
@@ -24,7 +22,6 @@ class AICommands(commands.Cog):
         app_commands.Choice(name="세로 방향", value=2)
     ])
     async def generate_image(self, interaction: discord.Interaction, prompt: str, size: int = 0):
-        """DALL-E를 사용하여 이미지를 생성합니다"""
         await interaction.response.defer(thinking=True)
         
         try:

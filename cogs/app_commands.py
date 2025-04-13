@@ -6,15 +6,12 @@ from core.logger import logger
 from services.database import db
 
 class AdminCommands(commands.Cog):
-    """봇 관리자용 명령어"""
-    
     def __init__(self, bot):
         self.bot = bot
     
     @app_commands.command(name="addchatchannel", description="현재 채널을 대화 채널에 추가합니다")
     @app_commands.guild_only()
     async def add_chat_channel(self, interaction: discord.Interaction):
-        """현재 채널을 GPT 대화 채널 목록에 추가합니다"""
         await interaction.response.defer(ephemeral=True)
 
         # 관리자 또는 봇 소유자 권한 확인
@@ -37,7 +34,6 @@ class AdminCommands(commands.Cog):
     @app_commands.command(name="removechatchannel", description="현재 채널을 대화 채널에서 제거합니다")
     @app_commands.guild_only()
     async def remove_chat_channel(self, interaction: discord.Interaction):
-        """현재 채널을 GPT 대화 채널 목록에서 제거합니다"""
         await interaction.response.defer(ephemeral=True)
 
         # 관리자 또는 봇 소유자 권한 확인
@@ -58,7 +54,6 @@ class AdminCommands(commands.Cog):
     @app_commands.command(name="listchannels", description="대화 채널 목록을 표시합니다")
     @app_commands.guild_only()
     async def list_chat_channels(self, interaction: discord.Interaction):
-        """등록된 모든 GPT 대화 채널을 확인합니다"""
         await interaction.response.defer(ephemeral=True)
 
         # 관리자 또는 봇 소유자 권한 확인

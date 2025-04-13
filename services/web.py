@@ -1,8 +1,3 @@
-"""
-웹 검색 및 크롤링 기능을 제공하는 모듈
-Google Custom Search API를 사용한 검색과 BeautifulSoup을 사용한 웹 페이지 크롤링을 제공합니다.
-"""
-
 from concurrent.futures import ThreadPoolExecutor
 import aiohttp
 import asyncio
@@ -20,16 +15,6 @@ custom_search_engine_id = env.CUSTOM_SEARCH_ENGINE_ID
 google_api_key = env.GOOGLE_API_KEY
 
 async def search_google(query):
-    """
-    Google Custom Search API를 사용하여 검색 결과를 가져옵니다.
-    
-    Args:
-        query: 검색할 키워드 (문자열 또는 리스트)
-        
-    Returns:
-        검색 결과 목록 또는 실패 시 None
-    """
-
     query_list = []
 
     search_num = 2
@@ -61,17 +46,6 @@ async def search_google(query):
 
 
 async def crawl_website(session, url, timeout_seconds=15):
-    """
-    웹 페이지를 크롤링하여 텍스트 내용을 추출합니다.
-    
-    Args:
-        session: aiohttp 세션 객체
-        url: 크롤링할 웹 페이지 주소
-        timeout_seconds: 타임아웃 시간(초)
-        
-    Returns:
-        추출된 텍스트 또는 실패 시 None
-    """
     try:
         # 웹 페이지 내용 가져오기
         async def fetch_content():
@@ -106,15 +80,6 @@ async def crawl_website(session, url, timeout_seconds=15):
 
 
 async def search_and_crawl(keyword):
-    """
-    키워드로 검색 후 결과 페이지를 크롤링하여 내용을 반환합니다.
-    
-    Args:
-        keyword: 검색할 키워드
-        
-    Returns:
-        크롤링된 내용 또는 실패 시 None
-    """
     tasks = []
     
     # 검색 실행
