@@ -40,40 +40,41 @@ DATABASE_URL=sqlite:///bot.db
 python bot.py
 ```
 
-## MCP(Machine Communication Protocol) 통합
+## MCP(Model Context Protocol) 통합
 
-이 프로젝트는 MCP를 사용하여 Claude와 디스코드 API 사이의 통신을 관리합니다. MCP는 다음과 같은 기능을 제공합니다:
+디스코드 인터페이스와 AI 모델 간의 상호작용을 위한 MCP(Model Context Protocol) 서버를 구현합니다.
+이 프로젝트는 채팅으로 디스코드 서버 관리 기능을 자동화합니다.
+추가로 이미지 생성, 검색 등의 기능도 사용할 수 있습니다.
 
-- 디스코드 채널 정보 조회
-- 메시지 전송 및 반응 관리
-- 서버 멤버 및 역할 관리
-- 채널 생성 및 관리
+시스템 구성:
+- MCP 서버는 Discord 애플리케이션과 동일한 프로세스에서 실행되며, WebSocket 기반 통신을 제공합니다.
+- 채팅 입력시 상대적으로 저렴한 GPT-4o-mini 모델로 최근 채팅 내용을 분석하여 봇에게 채팅 요청을 하는지 판단하여 Claude 모델로 전달합니다.
+- Claude 모델이 사용자 의도를 분석하여 적절한 MCP 도구를 선택 및 실행하고, 일반적인 대화도 가능합니다.
+- 디스코드 채팅 인터페이스가 MCP 클라이언트 역할을 수행하여 사용자와 시스템 간 상호작용을 중개합니다.
+
+복잡한 디스코드 서버 관리 작업을 단순한 채팅 명령으로 수행할 수 있게 하여 관리 효율성을 크게 향상시킵니다.
 
 ## 사용 가능한 MCP 도구 목록
 
 다음은 현재 봇에서 사용할 수 있는 MCP 도구 목록입니다:
 
 **검색 및 생성:**
-
 *   `search_and_crawl`: 구글 검색 후 크롤링한 결과를 반환합니다.
 *   `generate_image`: DALL-E를 사용하여 이미지를 생성합니다.
 
 **서버 정보:**
-
 *   `get_server_info`: 디스코드 서버 정보를 조회합니다.
 *   `list_members`: 서버 멤버 목록을 조회합니다.
 *   `get_server_id_from_message`: 메시지에서 서버 ID를 자동으로 추출합니다.
 *   `list_categories`: 서버의 카테고리 목록을 조회합니다.
 
 **역할 관리:**
-
 *   `add_role`: 사용자에게 역할을 추가합니다.
 *   `remove_role`: 사용자에게서 역할을 제거합니다.
 *   `create_role`: 서버에 새로운 역할을 생성합니다.
 *   `delete_role`: 서버에서 역할을 삭제합니다.
 
 **채널 관리:**
-
 *   `create_text_channel`: 새 텍스트 채널을 생성합니다.
 *   `create_voice_channel`: 새 음성 채널을 생성합니다.
 *   `create_category`: 새 카테고리를 생성합니다.
@@ -89,7 +90,6 @@ python bot.py
 *   `set_channel_topic`: 텍스트 채널의 주제(토픽)를 설정합니다.
 
 **메시지 및 반응:**
-
 *   `add_reaction`: 메시지에 반응을 추가합니다.
 *   `add_multiple_reactions`: 메시지에 여러 반응을 추가합니다.
 *   `remove_reaction`: 메시지에서 반응을 제거합니다.
@@ -100,7 +100,6 @@ python bot.py
 *   `judge_conversation_ending`: 메시지가 대화를 종료하는 내용인지 판단하고 적절한 이모지로 응답합니다.
 
 **사용자 관리:**
-
 *   `get_user_info`: 디스코드 사용자 정보를 조회합니다.
 *   `change_nickname`: 서버 내 사용자의 닉네임을 변경합니다.
 *   `kick_member`: 서버에서 멤버를 추방합니다.
@@ -128,7 +127,7 @@ python bot.py
 
 ## Claude 연동 방식
 
-이 봇은 Anthropic의 Claude 모델과 상호작용하여 사용자 요청을 처리하고 대화를 진행합니다. 연동 방식은 다음과 같습니다.
+이 봇은 Anthropic의 Claude 모델과 상호작용하여 사용자 요청을 처리하고 대화를 진행합니다.
 
 1.  **초기 설정**:
     *   사용자 메시지(`message`)와 프롬프트(`prompt`)를 기반으로 대화 기록(`initial_conversation`)을 준비합니다. 이미지 입력(`img_mode`)도 지원합니다.
