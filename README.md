@@ -1,4 +1,3 @@
-# Interactive MCP Discord Bot
 
 ## 기능
 - Claude와 실시간 대화
