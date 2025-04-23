@@ -5,12 +5,13 @@ from discord import app_commands
 from services.claude import chat_with_claude
 from services.message_judgment import is_message_for_bot, is_conversation_ending
 from core.config import env
-from services.database import db
+from services.database import get_chat_channels, get_setting
+from core.logger import logger
 
 class ChatCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        # 메시지 처리 임계값 - 이 값 이상의 확률이면 봇 대상으로 판단
+        # 메시지 처리 임계값
         self.confidence_threshold = 0.6
     
     @commands.Cog.listener()
@@ -21,9 +22,9 @@ class ChatCommands(commands.Cog):
         
         # 채팅 채널이 아닌 경우 무시
         channel = message.channel
-        
-        # 데이터베이스에서 채팅 채널 확인
-        chat_channels = db.get_chat_channels()
+
+        # 채팅 채널 확인
+        chat_channels = get_chat_channels()
         if channel.id not in chat_channels:
             return
             
@@ -38,13 +39,18 @@ class ChatCommands(commands.Cog):
             
         # 이미지 처리
         image_mode = False
-        image_url = ""
+        image_url = None
         try:
             if message.attachments:
-                image_mode = True
-                image_url = message.attachments[0].url
-        except Exception:
-            pass
+                for attachment in message.attachments:
+                    # 첨부 파일이 이미지인지 확인
+                    if attachment.content_type and attachment.content_type.startswith('image/'):
+                        image_mode = True
+                        image_url = attachment.url
+                        break
+        except Exception as e:
+            logger.log(f"이미지 첨부 처리 중 오류 발생: {str(e)}", logger.ERROR)
+            # 오류가 발생해도 계속 진행
             
         # 메시지 처리
         user = message.author
@@ -76,7 +82,7 @@ class ChatCommands(commands.Cog):
                 })
                 
                 # 최대 5개만 저장
-                if len(recent_messages) >= env.MAX_HISTORY_COUNT:
+                if len(recent_messages) >= get_setting("history_num"):
                     break
             
             # 시간 순서대로 정렬 (오래된 메시지가 먼저 오도록)
@@ -109,7 +115,7 @@ class ChatCommands(commands.Cog):
             
             async with channel.typing():
                 try:
-                    # Claude와 MCP를 사용하여 메시지 응답
+                    # Claude와 MCP를 사용하여 메시지 응답 (이미지 URL도 전달)
                     await chat_with_claude(message, server_name, text, image_mode, image_url)
                 except Exception as err:
                     await message.reply(f"에러입니다.\n{str(err)}")

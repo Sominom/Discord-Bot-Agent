@@ -5,6 +5,14 @@ from services.database import get_setting
 
 def create_image_embed(title: str, description: str, url: str):
     
+    # 제목 길이 제한 (임베드 title 최대 256자)
+    if len(title) > 250:
+        title = title[:247] + "..."
+    
+    # 설명 길이 제한 (디스코드 임베드 description 최대 4096자)
+    if len(description) > 4000:
+        description = description[:3997] + "..."
+    
     embed = discord.Embed(
         title=title,
         description=description,

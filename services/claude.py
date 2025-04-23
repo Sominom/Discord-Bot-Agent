@@ -8,6 +8,9 @@ from typing import List, Dict, Any, Optional
 import asyncio
 import anthropic
 import discord
+import base64
+import requests
+from io import BytesIO
 
 from services.prompts import system_prompts
 from services.func import prompt_to_chat, create_image_embed
@@ -26,20 +29,44 @@ async def image_generate(prompt: str, size: int, reply_message: discord.Message)
     sizestr = ["1024x1024", "1792x1024", "1024x1792"][size]
 
     try:
+        # 프롬프트 길이 제한 (DALL-E API 제한)
+        if len(prompt) > 1000:
+            prompt_for_api = prompt[:997] + "..."
+        else:
+            prompt_for_api = prompt
+            
+        await reply_message.edit(content=f"이미지를 생성하는 중... 잠시만 기다려주세요.")
+        
         response = openai_client.images.generate(
             model="dall-e-3",
-            prompt=prompt,
+            prompt=prompt_for_api,
             n=1,
             size=sizestr
         )
         data: list = response.data
         for index, image in enumerate(data):
-            title = f"{prompt}"
-            embed = create_image_embed(title, prompt, image.url)
-        await reply_message.edit(content=f"이미지를 생성했습니다. {prompt}", embed=embed)
+            try:
+                embed = create_image_embed(prompt, prompt, image.url)
+                await reply_message.edit(content=f"이미지를 생성했습니다.", embed=embed)
+                return
+            except discord.HTTPException as e:
+                logger.log(f"임베드 전송 오류: {str(e)}", logger.ERROR)
+                # 임베드 전송에 실패한 경우 이미지 URL만 전송
+                await reply_message.edit(content=f"이미지를 생성했습니다.\n이미지 URL: {image.url}")
+                return
+                
+        # 이미지가 생성되지 않은 경우
+        await reply_message.edit(content=f"이미지 생성 결과가 없습니다.")
     except Exception as err:
         traceback.print_exc()
-        await reply_message.edit(content=f"이미지를 생성하는데 오류가 발생했습니다. {str(err)}")
+        try:
+            await reply_message.edit(content=f"이미지를 생성하는데 오류가 발생했습니다.\n오류: {str(err)[:500]}")
+        except:
+            # 메시지 편집 실패 시 새 메시지 전송 시도
+            try:
+                await reply_message.channel.send(f"이미지 생성 오류: {str(err)[:500]}")
+            except:
+                pass
 
 async def get_claude_response(messages: List[Dict[str, Any]], tools=None) -> Any:
     
@@ -90,7 +117,7 @@ async def extract_tool_info(message_chunks, tool_name=None):
             if hasattr(chunk.delta, 'text'):
                 text_content += chunk.delta.text
         
-        # 도구 사용 델타에서 정보 추출
+        # 툴 사용 델타에서 정보 추출
         if hasattr(chunk, 'delta') and hasattr(chunk.delta, 'tool_use'):
             # ID 추출
             if hasattr(chunk.delta.tool_use, 'id'):
@@ -145,10 +172,10 @@ async def extract_tool_info(message_chunks, tool_name=None):
                 except:
                     logger.log(f"텍스트 JSON 파싱 오류: {json_match.group(1)}", logger.WARNING)
             
-            # 특수 도구 처리
+            # 특수 툴 처리
             if tool_info["name"] == "get_server_id_from_message" and "message_id" not in tool_info["input"]:
                 # message_id 추가가 외부에서 이루어질 것임
-                logger.log("get_server_id_from_message 도구 감지됨", logger.INFO)
+                logger.log("get_server_id_from_message 툴 감지됨", logger.INFO)
             elif tool_info["name"] == "generate_image" and not tool_info["input"]:
                 prompt_match = re.search(r'이미지.생성.*?["\']([^"\']+)["\']', text_content)
                 if prompt_match:
@@ -158,13 +185,13 @@ async def extract_tool_info(message_chunks, tool_name=None):
         except Exception as e:
             logger.log(f"텍스트에서 정보 추출 오류: {str(e)}", logger.ERROR)
     
-    logger.log(f"최종 도구 정보: {tool_info}", logger.INFO)
+    logger.log(f"최종 툴 정보: {tool_info}", logger.INFO)
     return tool_info, text_content
 
 async def execute_tool(tool_name, tool_input, message_id=None):
     
     try:
-        # 특수 도구 처리
+        # 특수 툴 처리
         if tool_name == "generate_image" and "prompt" in tool_input:
             # 이미지 생성은 직접 처리하지 않고 호출자에게 반환
             return {"type": "image_generation", "prompt": tool_input["prompt"], "size": tool_input.get("size", 0)}
@@ -174,18 +201,18 @@ async def execute_tool(tool_name, tool_input, message_id=None):
             tool_input["message_id"] = str(message_id)
             logger.log(f"message_id 자동 추가: {message_id}", logger.INFO)
         
-        # MCP 모듈을 통해 도구 호출
+        # MCP 모듈을 통해 툴 호출
         from services.mcp import call_tool
         result = await call_tool(tool_name, tool_input)
         
         # 결과 처리
         if result:
-            logger.log(f"{tool_name} 도구 실행 결과: {result}", logger.INFO)
+            logger.log(f"{tool_name} 툴 실행 결과: {result}", logger.INFO)
             return {"type": "tool_result", "result": result}
         else:
-            return {"type": "error", "message": "도구 실행 결과가 없습니다."}
+            return {"type": "error", "message": "툴 실행 결과가 없습니다."}
     except Exception as e:
-        logger.log(f"도구 실행 오류: {str(e)}", logger.ERROR)
+        logger.log(f"툴 실행 오류: {str(e)}", logger.ERROR)
         return {"type": "error", "message": str(e)}
 
 async def update_discord_message(message, current_text, force=False, last_update_length=0):
@@ -214,7 +241,7 @@ async def process_tool_result(tool_result_content, server_id=None):
             match = re.search(r"서버 ID:\s*(\d+)", tool_result_content)
             if match:
                 extracted_id = match.group(1)
-                logger.log(f"도구 결과에서 서버 ID 추출: {extracted_id}", logger.INFO)
+                logger.log(f"툴 결과에서 서버 ID 추출: {extracted_id}", logger.INFO)
                 return extracted_id
     except Exception as e:
         logger.log(f"서버 ID 추출 오류: {str(e)}", logger.ERROR)
@@ -254,13 +281,26 @@ async def process_tool_in_conversation(messages, tool_info, tool_result_content)
     return new_messages, server_id
 
 async def chat_with_claude(message, username, prompt, img_mode=False, img_url=None, message_object=None):
-    # 이미지 모드인 경우 처리
+    # 이미지 모드인 경우
     if img_mode:
         initial_conversation = []
-        initial_conversation.append({"role": "user", "content": [
-            {"type": "text", "text": f"{username}: {prompt}"},
-            {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": img_url}}
-        ]})
+        
+        # URL이 제공된 경우 Base64로 인코딩된 이미지 가져오기
+        if img_url:
+            image_data, content_type = await get_image_data_from_url(img_url)
+            
+            if image_data and content_type:
+                initial_conversation.append({"role": "user", "content": [
+                    {"type": "text", "text": f"{username}: {prompt}"},
+                    {"type": "image", "source": {"type": "base64", "media_type": content_type, "data": image_data}}
+                ]})
+            else:
+                # 이미지 데이터를 가져오지 못한 경우 텍스트만 전송
+                logger.log(f"이미지 데이터를 가져오지 못했습니다: {img_url}", logger.WARNING)
+                initial_conversation = await prompt_to_chat(message, username, f"{prompt} (이미지를 첨부하려 했으나 실패했습니다)")
+        else:
+            # 이미지 URL이 없는 경우
+            initial_conversation = await prompt_to_chat(message, username, prompt)
     else:
         # 대화 기록 가져오기
         initial_conversation = await prompt_to_chat(message, username, prompt)
@@ -292,7 +332,7 @@ async def chat_with_claude(message, username, prompt, img_mode=False, img_url=No
         from services.mcp import set_current_message
         set_current_message(message)
     
-    # MCP 도구 가져오기
+    # MCP 툴 가져오기
     from services.mcp import get_claude_tools
     mcp_tools = await get_claude_tools()
     
@@ -302,7 +342,7 @@ async def chat_with_claude(message, username, prompt, img_mode=False, img_url=No
         *initial_conversation
     ]
 
-    # 메시지 객체가 없는 경우 새로 생성
+    # 메시지 객체가 없는 경우 생성
     if not message_object:
         reply_message = await message.reply(". . .")
     else:
@@ -316,7 +356,7 @@ async def chat_with_claude(message, username, prompt, img_mode=False, img_url=No
         while current_round < max_tool_rounds:
             current_round += 1
 
-            # 시스템 프롬프트 분리 및 메시지 필터링
+            # 시스템 프롬프트 분리 (기존 OpenAI 프롬프트 호환)
             system_prompt = None
             filtered_messages = []
             for msg in messages:
@@ -325,7 +365,7 @@ async def chat_with_claude(message, username, prompt, img_mode=False, img_url=No
                 else:
                     filtered_messages.append(msg)
 
-            # Claude API 호출
+            # Claude 호출
             logger.log(f"Claude API 호출 ({current_round}) 시작", logger.INFO)
             response = claude_client.messages.create(
                 model=env.CLAUDE_MODEL,
@@ -344,7 +384,7 @@ async def chat_with_claude(message, username, prompt, img_mode=False, img_url=No
             has_text = False
 
             for block in response.content:
-                # raw 블록 저장 (assistant 메시지 재구성을 위해)
+                # 나중에 메시지 재구성을 위해 raw 블록 저장
                 assistant_response_content.append(block.to_dict()) 
                 
                 if block.type == "text":
@@ -353,39 +393,39 @@ async def chat_with_claude(message, username, prompt, img_mode=False, img_url=No
                 elif block.type == "tool_use":
                     tool_calls_in_response.append(block)
             
-            # 어시스턴트의 응답을 메시지 기록에 추가
+            # AI 응답을 메시지 기록에 추가
             if assistant_response_content:
                 messages.append({"role": "assistant", "content": assistant_response_content})
 
-            # 텍스트 응답이 있으면 메시지 업데이트 및 저장
+            # 텍스트 응답이 있으면 메시지 업데이트
             if has_text:
                 latest_text_response = text_in_response
                 await update_discord_message(reply_message, latest_text_response, force=True)
 
-            # 도구 호출이 없으면 루프 종료
+            # 툴 호출이 없으면 루프 종료
             if not tool_calls_in_response:
-                logger.log("도구 호출 없음, 루프 종료.", logger.INFO)
+                logger.log("툴 호출 없음, 루프 종료.", logger.INFO)
                 break
 
-            # 도구 실행 및 결과 추가
-            logger.log(f"{len(tool_calls_in_response)}개 도구 호출 감지됨. 실행 시작.", logger.INFO)
+            # 툴 실행 및 결과 추가
+            logger.log(f"{len(tool_calls_in_response)}개 툴 호출 감지됨. 실행 시작.", logger.INFO)
             tool_results_for_next_call = []
             for tool_call in tool_calls_in_response:
-                # 도구 실행 알림 업데이트
+                # 툴 실행 알림 업데이트
                 await update_discord_message(
                     reply_message,
-                    f"{latest_text_response}\n\n`{tool_call.name}` 도구를 호출하는 중...",
+                    f"{latest_text_response}\n\n`{tool_call.name}`",
                     force=True
                 )
                 
-                # 도구 실행
+                # 툴 실행
                 tool_result = await execute_tool(tool_call.name, tool_call.input, message.id)
 
                 # 이미지 생성 또는 에러 처리
                 if tool_result["type"] == "image_generation":
                     await image_generate(tool_result["prompt"], tool_result["size"], reply_message)
-                    # 이미지 생성 완료 메시지를 결과로 추가 (return 제거)
-                    result_content_str = f"이미지 생성 완료: 프롬프트 '{tool_result['prompt']}'"
+                    # 이미지 생성 완료 메시지를 결과로 추가
+                    result_content_str = f"이미지 생성 완료: '{tool_result['prompt']}'"
                     tool_results_for_next_call.append({
                         "type": "tool_result",
                         "tool_use_id": tool_call.id,
@@ -394,18 +434,18 @@ async def chat_with_claude(message, username, prompt, img_mode=False, img_url=No
                     # 디스코드 메시지 업데이트
                     await update_discord_message(
                          reply_message,
-                         f"{latest_text_response}\n\n`{tool_call.name}` 도구 실행 완료 (이미지 생성됨).",
+                         f"{latest_text_response}\n\n`{tool_call.name}` 툴 실행 완료",
                          force=True
                     )
                 elif tool_result["type"] == "error":
-                    error_message = f"{latest_text_response}\n\n도구 실행 오류 ({tool_call.name}): {tool_result['message']}"
+                    error_message = f"{latest_text_response}\n\n툴 실행 오류 ({tool_call.name}): {tool_result['message']}"
                     await update_discord_message(reply_message, error_message, force=True)
                     return # 오류 발생 시 대화 종료
                 elif tool_result["type"] == "tool_result":
-                    # 성공적인 도구 결과 처리 (tool_result 타입 명시적 확인)
+                    # 성공적인 툴 결과 처리 (tool_result 타입 명시적 확인)
                     result_content_str = "\n".join([item.text for item in tool_result["result"] if hasattr(item, 'text')])
                     if not result_content_str.strip():
-                        result_content_str = f"{tool_call.name} 도구 실행 완료, 결과 없음"
+                        result_content_str = f"{tool_call.name} 툴 실행 완료, 결과 없음"
                     
                     # 다음 API 호출을 위해 결과 저장
                     tool_results_for_next_call.append({
@@ -414,32 +454,32 @@ async def chat_with_claude(message, username, prompt, img_mode=False, img_url=No
                         "content": result_content_str
                     })
 
-                    # 도구 실행 완료 알림 (선택적)
+                    # 툴 실행 완료 알림 (선택적)
                     await update_discord_message(
                          reply_message,
-                         f"{latest_text_response}\n\n`{tool_call.name}` 도구 실행 완료.",
+                         f"{latest_text_response}\n\n`{tool_call.name}` 툴 실행 완료.",
                          force=True
                     )
             
-            # 실행된 모든 도구 결과를 user 역할 메시지로 추가
+            # 실행된 모든 툴 결과를 user 역할 메시지로 추가
             if tool_results_for_next_call:
                 messages.append({"role": "user", "content": tool_results_for_next_call})
-                logger.log("도구 결과 메시지 추가 완료.", logger.INFO)
+                logger.log("툴 결과 메시지 추가 완료", logger.INFO)
             
-            # 최대 라운드 도달 시 경고 및 종료 준비
+            # 최대 라운드 도달 시 종료 준비
             if current_round == max_tool_rounds:
-                logger.log("최대 도구 호출 라운드 도달.", logger.WARNING)
+                logger.log("최대 툴 호출 도달", logger.WARNING)
                 await update_discord_message(
                     reply_message,
-                    f"{latest_text_response}\n\n[최대 도구 호출 횟수({max_tool_rounds})에 도달했습니다.]",
+                    f"{latest_text_response}\n\n[최대 툴 호출 횟수({max_tool_rounds})에 도달했습니다.]",
                     force=True
                 )
                 break # 루프 종료
 
         # 루프 종료 후 최종 상태 확인
         if not latest_text_response and not messages[-1]["role"] == "assistant":
-             # 초기 응답도 없고, 마지막 메시지가 어시스턴트 응답도 아닌 경우 (예: 오류 없이 도구만 호출하다 끝난 경우)
-             await update_discord_message(reply_message, "도구 실행은 완료되었지만 최종 응답이 없습니다.", force=True)
+             # 초기 응답도 없고 마지막 메시지가 어시스턴트 응답도 아닌 경우, 오류 없이 툴만 호출하다 끝난 경우
+             await update_discord_message(reply_message, "툴 실행은 완료되었지만 최종 응답이 없습니다.", force=True)
 
     except Exception as e:
         logger.log(f"Claude 응답 처리 오류: {str(e)}", logger.ERROR)
@@ -448,8 +488,36 @@ async def chat_with_claude(message, username, prompt, img_mode=False, img_url=No
         if 'reply_message' in locals() and reply_message:
             await reply_message.edit(content=f"오류가 발생했습니다: {str(e)}")
         else:
-            # reply_message가 없는 경우, 원본 메시지에 답글로 오류 메시지 전송 시도
+            # reply_message가 없는 경우 원본 메시지에 답글로 오류 메시지 전송 시도
             try:
                 await message.reply(f"오류가 발생했습니다: {str(e)}")
             except Exception as fallback_e:
                 logger.log(f"최종 오류 메시지 전송 실패: {fallback_e}", logger.CRITICAL) 
+
+async def get_image_data_from_url(url: str) -> Optional[str]:
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        
+        # 이미지 Base64 인코딩
+        image_data = base64.b64encode(response.content).decode('utf-8')
+        
+        # 컨텐츠 타입 확인
+        content_type = response.headers.get('Content-Type', '')
+        if not content_type.startswith('image/'):
+            # 컨텐츠 타입이 없거나 이미지가 아닌 경우 확장자로 추측
+            if url.lower().endswith('.jpg') or url.lower().endswith('.jpeg'):
+                content_type = 'image/jpeg'
+            elif url.lower().endswith('.png'):
+                content_type = 'image/png'
+            elif url.lower().endswith('.gif'):
+                content_type = 'image/gif'
+            elif url.lower().endswith('.webp'):
+                content_type = 'image/webp'
+            else:
+                content_type = 'image/jpeg'  # 기본값
+        
+        return image_data, content_type
+    except Exception as e:
+        logger.log(f"이미지 다운로드 오류 ({url}): {str(e)}", logger.ERROR)
+        return None, None 

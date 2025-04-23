@@ -45,14 +45,14 @@ python bot.py
 시스템 구성:
 - MCP 서버는 Discord 애플리케이션과 동일한 프로세스에서 실행되며, WebSocket 기반 통신을 제공합니다.
 - 채팅 입력시 상대적으로 저렴한 GPT-4o-mini 모델로 최근 채팅 내용을 분석하여 봇에게 채팅 요청을 하는지 판단하여 Claude 모델로 전달합니다.
-- Claude 모델이 사용자 의도를 분석하여 적절한 MCP 도구를 선택 및 실행하고, 일반적인 대화도 가능합니다.
+- Claude 모델이 사용자 의도를 분석하여 적절한 MCP 툴을 선택 및 실행하고, 일반적인 대화도 가능합니다.
 - 디스코드 채팅 인터페이스가 MCP 클라이언트 역할을 수행하여 사용자와 시스템 간 상호작용을 중개합니다.
 
 복잡한 디스코드 서버 관리 작업을 단순한 채팅 명령으로 수행할 수 있게 하여 관리 효율성을 크게 향상시킵니다.
 
-## 사용 가능한 MCP 도구 목록
+## 사용 가능한 MCP 툴 목록
 
-다음은 현재 봇에서 사용할 수 있는 MCP 도구 목록입니다:
+다음은 현재 봇에서 사용할 수 있는 MCP 툴 목록입니다:
 
 **검색 및 생성:**
 *   `search_and_crawl`: 구글 검색 후 크롤링한 결과를 반환합니다.
@@ -128,28 +128,28 @@ python bot.py
 1.  **초기 설정**:
     *   사용자 메시지(`message`)와 프롬프트(`prompt`)를 기반으로 대화 기록(`initial_conversation`)을 준비합니다. 이미지 입력(`img_mode`)도 지원합니다.
     *   기본 시스템 프롬프트에 현재 날짜, 서버 정보(ID, 이름), 채널 정보(ID, 이름), 사용자 ID, 메시지 ID를 추가하여 Claude에게 컨텍스트를 제공합니다.
-    *   `services/mcp.py`에서 사용 가능한 MCP 도구 목록(`mcp_tools`)을 가져옵니다.
-    *   `services/mcp.set_current_message(message)`를 호출하여 현재 처리 중인 Discord 메시지 객체를 MCP 모듈에 전달합니다. 이는 일부 MCP 도구가 메시지 컨텍스트(예: 서버 ID 자동 추출)를 활용하기 위함입니다.
+    *   `services/mcp.py`에서 사용 가능한 MCP 툴 목록(`mcp_tools`)을 가져옵니다.
+    *   `services/mcp.set_current_message(message)`를 호출하여 현재 처리 중인 Discord 메시지 객체를 MCP 모듈에 전달합니다. 이는 일부 MCP 툴가 메시지 컨텍스트(예: 서버 ID 자동 추출)를 활용하기 위함입니다.
 
-2.  **Claude API 호출 및 도구 사용 루프**:
-    *   봇은 최대 50번의 상호작용(`current_round`)을 통해 Claude와 대화하며 도구를 사용합니다.
-    *   각 라운드마다 현재까지의 대화 기록(`messages`)과 사용 가능한 MCP 도구 목록(`mcp_tools`)을 포함하여 Claude API(`claude_client.messages.create`)를 호출합니다. 이 호출은 스트리밍 방식이 아닌, 한 번에 완전한 응답을 받는 방식입니다.
-    *   Claude의 응답(`response.content`)에는 텍스트 응답과 도구 사용 요청(`tool_use`)이 포함될 수 있습니다.
+2.  **Claude API 호출 및 툴 사용 루프**:
+    *   봇은 최대 50번의 상호작용(`current_round`)을 통해 Claude와 대화하며 툴을 사용합니다.
+    *   각 라운드마다 현재까지의 대화 기록(`messages`)과 사용 가능한 MCP 툴 목록(`mcp_tools`)을 포함하여 Claude API(`claude_client.messages.create`)를 호출합니다. 이 호출은 스트리밍 방식이 아닌, 한 번에 완전한 응답을 받는 방식입니다.
+    *   Claude의 응답(`response.content`)에는 텍스트 응답과 툴 사용 요청(`tool_use`)이 포함될 수 있습니다.
     *   **텍스트 응답 처리**: 응답에 텍스트가 포함되어 있으면, 해당 텍스트(`latest_text_response`)로 Discord의 응답 메시지를 업데이트합니다.
-    *   **도구 사용 처리**:
-        *   응답에 도구 사용 요청(`tool_calls_in_response`)이 있으면, 각 요청된 도구(`tool_call`)에 대해 다음을 수행합니다:
-            *   Discord 메시지를 업데이트하여 사용자에게 어떤 도구를 호출하는지 알립니다.
-            *   `services/claude.execute_tool` 함수를 호출하여 해당 MCP 도구를 실행합니다. `message.id`도 함께 전달되어 도구 실행 시 컨텍스트로 활용될 수 있습니다.
-            *   `generate_image` 도구는 특별히 처리되어, `services.claude.image_generate` 함수를 직접 호출하여 DALL-E 이미지를 생성하고 Discord 메시지에 임베드로 표시합니다.
-            *   다른 MCP 도구들은 `services/mcp.call_tool` 함수를 통해 실행됩니다.
-            *   도구 실행 결과를 Discord 메시지에 업데이트합니다.
-        *   성공적인 도구 실행 결과는 다음 Claude API 호출 시 컨텍스트로 제공하기 위해 `user` 역할의 메시지로 대화 기록(`messages`)에 추가됩니다.
-    *   도구 사용 요청이 없을 경우 루프를 종료합니다.
+    *   **툴 사용 처리**:
+        *   응답에 툴 사용 요청(`tool_calls_in_response`)이 있으면, 각 요청된 툴(`tool_call`)에 대해 다음을 수행합니다:
+            *   Discord 메시지를 업데이트하여 사용자에게 어떤 툴을 호출하는지 알립니다.
+            *   `services/claude.execute_tool` 함수를 호출하여 해당 MCP 툴을 실행합니다. `message.id`도 함께 전달되어 툴 실행 시 컨텍스트로 활용될 수 있습니다.
+            *   `generate_image` 툴는 특별히 처리되어, `services.claude.image_generate` 함수를 직접 호출하여 DALL-E 이미지를 생성하고 Discord 메시지에 임베드로 표시합니다.
+            *   다른 MCP 툴들은 `services/mcp.call_tool` 함수를 통해 실행됩니다.
+            *   툴 실행 결과를 Discord 메시지에 업데이트합니다.
+        *   성공적인 툴 실행 결과는 다음 Claude API 호출 시 컨텍스트로 제공하기 위해 `user` 역할의 메시지로 대화 기록(`messages`)에 추가됩니다.
+    *   툴 사용 요청이 없을 경우 루프를 종료합니다.
 
 3.  **최종 응답 및 오류 처리**:
-    *   도구 사용 루프가 종료되면 (도구 호출이 더 이상 없거나 최대 라운드 도달), 마지막으로 받은 텍스트 응답이 Discord에 표시됩니다.
-    *   만약 텍스트 응답 없이 도구 실행만 완료된 경우, "도구 실행은 완료되었지만 응답이 없습니다."와 같은 메시지를 표시합니다.
-    *   API 호출 또는 도구 실행 중 오류가 발생하면 해당 오류 메시지를 Discord에 표시하고 처리를 중단합니다.
+    *   툴 사용 루프가 종료되면 (툴 호출이 더 이상 없거나 최대 라운드 도달), 마지막으로 받은 텍스트 응답이 Discord에 표시됩니다.
+    *   만약 텍스트 응답 없이 툴 실행만 완료된 경우, "툴 실행은 완료되었지만 응답이 없습니다."와 같은 메시지를 표시합니다.
+    *   API 호출 또는 툴 실행 중 오류가 발생하면 해당 오류 메시지를 Discord에 표시하고 처리를 중단합니다.
 
 ## 스크린샷
 ![image](https://github.com/user-attachments/assets/b86ab831-cf85-4e0b-a697-c5255451ef95)

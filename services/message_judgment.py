@@ -37,10 +37,10 @@ async def is_message_for_bot(message_content: str, username: str, bot_name: str,
             confidence = result.get("confidence", 0)
             return is_for_bot, confidence
         except json.JSONDecodeError:
-            logger.error(f"JSON 파싱 오류: {result_text}")
+            logger.log(f"JSON 파싱 오류: {result_text}", logger.ERROR)
             return False, 0
     except Exception as e:
-        logger.error(f"메시지 판단 오류: {str(e)}")
+        logger.log(f"메시지 판단 오류: {str(e)}", logger.ERROR)
         return False, 0
 
 async def is_conversation_ending(message_content):
@@ -70,12 +70,12 @@ async def is_conversation_ending(message_content):
             suggested_emoji = result.get("suggested_emoji", "👍")
             return is_ending, suggested_emoji
         except json.JSONDecodeError:
-            logger.error(f"JSON 파싱 오류: {result_text}")
+            logger.log(f"JSON 파싱 오류: {result_text}", logger.ERROR)
             # 간단한 키워드 매칭으로 폴백
             for keyword in ending_keywords:
                 if keyword in message_content.lower():
                     return True, "👍"
             return False, None
     except Exception as e:
-        logger.error(f"대화 종료 판단 오류: {str(e)}")
+        logger.log(f"대화 종료 판단 오류: {str(e)}", logger.ERROR)
         return False, None 

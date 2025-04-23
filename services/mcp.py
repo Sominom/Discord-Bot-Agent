@@ -27,19 +27,18 @@ def set_discord_client(client):
     
     global discord_client
     discord_client = client
-    logger.info(f"디스코드 클라이언트 설정 완료: {client.user.name if client else None}")
+    logger.log(f"디스코드 클라이언트 설정 완료: {client.user.name if client else None}", logger.INFO)
 
 def set_current_message(message):
     
     global current_message
     current_message = message
-    logger.info(f"현재 메시지 설정 완료: {message.id if message else None}")
+    logger.log(f"현재 메시지 설정 완료: {message.id if message else None}", logger.INFO)
 
-# 모든 도구 정의
+# 모든 툴 정의
 def get_all_tools() -> List[Tool]:
-    
     return [
-        # 검색 도구 추가
+        # 검색 툴 추가
         Tool(
             name="search_and_crawl",
             description="구글 검색 후 크롤링한 결과를 반환합니다",
@@ -54,7 +53,7 @@ def get_all_tools() -> List[Tool]:
                 "required": ["keyword"]
             }
         ),
-        # 서버 정보 도구
+        # 서버 정보 툴
         Tool(
             name="get_server_info",
             description="디스코드 서버 정보 조회",
@@ -90,7 +89,7 @@ def get_all_tools() -> List[Tool]:
             }
         ),
 
-        # 역할 관리 도구
+        # 역할 관리 툴
         Tool(
             name="add_role",
             description="사용자에게 역할 추가",
@@ -136,7 +135,7 @@ def get_all_tools() -> List[Tool]:
             }
         ),
 
-        # 채널 관리 도구
+        # 채널 관리 툴
         Tool(
             name="create_text_channel",
             description="새 텍스트 채널 생성",
@@ -370,7 +369,7 @@ def get_all_tools() -> List[Tool]:
             }
         ),
 
-        # 메시지 반응 도구
+        # 메시지 반응 툴
         Tool(
             name="add_reaction",
             description="메시지에 반응 추가",
@@ -778,13 +777,30 @@ def get_all_tools() -> List[Tool]:
                 },
                 "required": ["channel_id", "title", "description"]
             }
-        )
+        ),
+        Tool(
+            name="get_image_from_message",
+            description="특정 메시지에서 이미지를 가져옵니다.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "channel_id": {
+                        "type": "string",
+                        "description": "메시지가 있는 채널 ID"
+                    },
+                    "message_id": {
+                        "type": "string",
+                        "description": "이미지가 포함된 메시지 ID"
+                    }
+                },
+                "required": ["channel_id", "message_id"]
+            }
+        ),
     ]
 
 
 # GPT Function 정의
 def get_gpt_functions():
-    
     return [
         {
             "type": "function",
@@ -827,10 +843,8 @@ def get_gpt_functions():
         },
     ]
 
-# get_claude_tools() 함수를 비동기 함수로 변경
 async def get_claude_tools():
-    
-    # MCP 서버에서 도구 목록 가져오기
+    # MCP 서버에서 툴 목록 가져오기
     tools = await list_tools()
     claude_tools = []
     
@@ -852,18 +866,18 @@ def extract_message_info(message=None):
     message = message or current_message
     
     if not message:
-        logger.warning("메시지 객체가 없어 정보를 추출할 수 없습니다.")
+        logger.log("메시지 객체가 없어 정보를 추출할 수 없습니다.", logger.ERROR)
         return None, None, None
     
     message_id = str(message.id)
     channel_id = str(message.channel.id)
     server_id = str(message.guild.id) if message.guild else None
     
-    logger.info(f"메시지 정보 추출: message_id={message_id}, channel_id={channel_id}, server_id={server_id}")
+    logger.log(f"메시지 정보 추출: message_id={message_id}, channel_id={channel_id}, server_id={server_id}", logger.INFO)
     
     return message_id, channel_id, server_id
 
-# 도구 입력에 자동으로 메시지, 채널, 서버 ID 정보 추가
+# 툴 입력에 자동으로 메시지, 채널, 서버 ID 정보 추가
 def auto_fill_message_info(arguments, tool_name=None):
     message_id, channel_id, server_id = extract_message_info()
     
@@ -872,16 +886,11 @@ def auto_fill_message_info(arguments, tool_name=None):
         arguments = {}
     
     if not message_id and not channel_id and not server_id:
-        logger.warning("자동 메시지 정보 주입 실패: 추출된 정보 없음")
+        logger.log("자동 메시지 정보 주입 실패: 추출된 정보 없음", logger.ERROR)
         return arguments
     
-    # 도구별 특화 처리
-    if tool_name == "get_server_id_from_message":
-        if "message_id" not in arguments or not arguments["message_id"]:
-            arguments["message_id"] = message_id
-    
     # 메시지 ID 필드가 필요하고 비어있으면 추가
-    elif "message_id" in str(arguments) and not arguments.get("message_id"):
+    if "message_id" in str(arguments) and not arguments.get("message_id"):
         arguments["message_id"] = message_id
     
     # 채널 ID 필드가 필요하고 비어있으면 추가
@@ -892,7 +901,7 @@ def auto_fill_message_info(arguments, tool_name=None):
     if "server_id" in str(arguments) and not arguments.get("server_id"):
         arguments["server_id"] = server_id
     
-    logger.info(f"인자 자동 주입 완료: {arguments}")
+    logger.log(f"인자 자동 주입 완료: {arguments}", logger.INFO)
     return arguments
 
 @mcp_app.list_tools()
@@ -903,23 +912,21 @@ async def list_tools_impl() -> List[Tool]:
 async def call_tool(name: str, arguments: Any) -> List[TextContent]:
     global discord_client
     
-    # 디버깅을 위해 입력 인자 로깅
-    logger.info(f"도구 호출: {name}, 인자: {arguments}")
+    logger.log(f"툴 호출: {name}, 인자: {arguments}", logger.INFO)
     
     if not discord_client:
-        logger.error("디스코드 클라이언트가 준비되지 않았습니다.")
+        logger.log("디스코드 클라이언트가 준비되지 않았습니다.", logger.ERROR)
         return [TextContent(
             type="text",
             text="디스코드 클라이언트가 준비되지 않았습니다."
         )]
     
-    # 필수 파라미터 검증
     missing_params = []
     try:
         tools = await list_tools_impl()
         target_tool = None
         
-        # 호출된 도구 스키마 찾기
+        # 호출된 툴 스키마 찾기
         for tool in tools:
             if tool.name == name:
                 target_tool = tool
@@ -937,28 +944,27 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
                         missing_params.append(req_param)
         
         if missing_params:
-            logger.error(f"도구 {name} 호출 시 필수 파라미터 누락: {missing_params}")
+            logger.log(f"툴 {name} 호출 시 필수 파라미터 누락: {missing_params}", logger.ERROR)
             return [TextContent(
                 type="text",
-                text=f"도구 실행에 필요한 필수 파라미터가 누락되었습니다: {', '.join(missing_params)}"
+                text=f"툴 실행에 필요한 필수 파라미터가 누락되었습니다: {', '.join(missing_params)}"
             )]
     except Exception as e:
-        logger.error(f"파라미터 검증 중 오류: {str(e)}")
-        # 파라미터 검증에 실패하더라도 실행 시도
+        logger.log(f"파라미터 검증 중 오류: {str(e)}", logger.ERROR)
     
     try:
         if name == "search_and_crawl":
             from services.web import search_and_crawl
             keyword = arguments["keyword"]
-            logger.info(f"검색 요청: {keyword}")
+            logger.log(f"검색 요청: {keyword}", logger.INFO)
             
             # 검색 및 크롤링 실행
             result = await search_and_crawl(keyword)
             
             if result:
-                # 결과가 너무 길면 truncate
+                # 결과가 너무 길면 자름
                 if len(result) > 4000:
-                    result = result[:4000] + "... (결과가 너무 길어 일부만 표시합니다)"
+                    result = result[:4000] + "..."
                 
                 return [TextContent(
                     type="text",
@@ -979,7 +985,6 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             )]
 
         elif name == "send_embed":
-            # 입력값 가져오기
             channel_id = arguments["channel_id"]
             title = arguments["title"]
             description = arguments["description"]
@@ -992,15 +997,15 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             # 임베드 생성
             embed = discord.Embed(title=title, description=description)
 
-            # 색상 설정 (제공된 경우)
+            # 색상 설정
             if color_hex:
                 try:
                     embed.color = discord.Colour.from_str(color_hex)
                 except ValueError:
-                    logger.warning(f"잘못된 색상 코드: {color_hex}. 기본 색상을 사용합니다.")
+                    logger.log(f"잘못된 색상 코드: {color_hex}. 기본 색상을 사용합니다.", logger.WARNING)
                     embed.color = discord.Colour.default() # 기본 색상 사용
 
-            # 푸터 설정 (제공된 경우)
+            # 푸터 설정
             if footer_text:
                 embed.set_footer(text=footer_text)
 
@@ -1046,7 +1051,7 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
         elif name == "get_server_id_from_message":
             try:
                 message_id = arguments.get("message_id")
-                logger.info(f"get_server_id_from_message 호출: message_id={message_id}")
+                logger.log(f"get_server_id_from_message 호출: message_id={message_id}", logger.INFO)
                 
                 if not message_id:
                     # 현재 처리 중인 메시지에서 서버 ID 추출
@@ -1090,7 +1095,7 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
                         except discord.NotFound:
                             continue
                         except Exception as e:
-                            logger.error(f"메시지 조회 오류: {str(e)}")
+                            logger.log(f"메시지 조회 오류: {str(e)}", logger.ERROR)
                             continue
                 
                 # 메시지를 찾지 못한 경우
@@ -1099,7 +1104,7 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
                     text=f"메시지 ID {message_id}를 찾을 수 없습니다."
                 )]
             except Exception as e:
-                logger.error(f"get_server_id_from_message 오류: {str(e)}")
+                logger.log(f"get_server_id_from_message 오류: {str(e)}", logger.ERROR)
                 return [TextContent(
                     type="text",
                     text=f"서버 ID 조회 중 오류 발생: {str(e)}"
@@ -1181,13 +1186,13 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
                         text=f"대화 종료로 판단되지 않았습니다. 종료 판단: {is_ending}"
                     )]
             except Exception as e:
-                logger.error(f"대화 종료 판단 오류: {str(e)}")
+                logger.log(f"대화 종료 판단 오류: {str(e)}", logger.ERROR)
                 return [TextContent(
                     type="text",
                     text=f"대화 종료 판단 중 오류 발생: {str(e)}"
                 )]
 
-        # 서버 정보 도구
+        # 서버 정보 툴
         elif name == "get_server_info":
             guild = await discord_client.fetch_guild(int(arguments["server_id"]))
             info = {
@@ -1225,7 +1230,7 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
                      "\n".join(f"{m['name']} (ID: {m['id']}, 역할: {', '.join(m['roles'])})" for m in members)
             )]
 
-        # 역할 관리 도구
+        # 역할 관리 툴
         elif name == "add_role":
             guild = await discord_client.fetch_guild(int(arguments["server_id"]))
             member = await guild.fetch_member(int(arguments["user_id"]))
@@ -1248,7 +1253,7 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
                 text=f"{member.name} 사용자에게서 {role.name} 역할 제거 완료"
             )]
 
-        # 채널 관리 도구
+        # 채널 관리 툴
         elif name == "create_text_channel":
             guild = await discord_client.fetch_guild(int(arguments["server_id"]))
             category = None
@@ -1462,7 +1467,7 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
                 text=f"채널 삭제 완료"
             )]
 
-        # 메시지 반응 도구
+        # 메시지 반응 툴
         elif name == "add_reaction":
             channel = await discord_client.fetch_channel(int(arguments["channel_id"]))
             message = await channel.fetch_message(int(arguments["message_id"]))
@@ -1610,18 +1615,97 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             )
             return [TextContent(type="text", text=f"사용자 '{user_name}'(이)가 서버에서 차단되었습니다. (메시지 {delete_days}일치 삭제)")]
 
-        raise ValueError(f"알 수 없는 도구: {name}")
+        elif name == "send_embed":
+            # 입력값 가져오기
+            channel_id = arguments["channel_id"]
+            title = arguments["title"]
+            description = arguments["description"]
+            color_hex = arguments.get("color") # 선택적 값
+            footer_text = arguments.get("footer") # 선택적 값
+
+            # 채널 객체 가져오기
+            channel = await discord_client.fetch_channel(int(channel_id))
+
+            # 임베드 생성
+            embed = discord.Embed(title=title, description=description)
+
+            # 색상 설정 (제공된 경우)
+            if color_hex:
+                try:
+                    embed.color = discord.Colour.from_str(color_hex)
+                except ValueError:
+                    logger.log(f"잘못된 색상 코드: {color_hex}. 기본 색상을 사용합니다.", logger.WARNING)
+                    embed.color = discord.Colour.default() # 기본 색상 사용
+
+            # 푸터 설정 (제공된 경우)
+            if footer_text:
+                embed.set_footer(text=footer_text)
+
+            # 임베드 전송
+            message = await channel.send(embed=embed)
+
+            # 결과 반환
+            return [TextContent(
+                type="text",
+                text=f"임베드 메시지 전송 완료. 메시지 ID: {message.id}"
+            )]
+
+        elif name == "get_image_from_message":
+            try:
+                channel = await discord_client.fetch_channel(int(arguments["channel_id"]))
+                message = await channel.fetch_message(int(arguments["message_id"]))
+                
+                if not message.attachments:
+                    return [TextContent(
+                        type="text",
+                        text="메시지에 첨부된 이미지가 없습니다."
+                    )]
+                
+                image_urls = []
+                for attachment in message.attachments:
+                    if attachment.content_type and attachment.content_type.startswith('image/'):
+                        image_urls.append({
+                            "url": attachment.url,
+                            "filename": attachment.filename,
+                            "size": attachment.size,
+                            "width": attachment.width,
+                            "height": attachment.height,
+                            "content_type": attachment.content_type
+                        })
+                
+                if not image_urls:
+                    return [TextContent(
+                        type="text",
+                        text="메시지에 이미지 형식의 첨부 파일이 없습니다."
+                    )]
+                
+                return [TextContent(
+                    type="text",
+                    text=f"메시지에서 {len(image_urls)}개의 이미지를 찾았습니다:\n" + 
+                         "\n".join([f"- {img['filename']} ({img['width']}x{img['height']}): {img['url']}" for img in image_urls])
+                )]
+            except discord.NotFound:
+                return [TextContent(
+                    type="text",
+                    text="메시지나 채널을 찾을 수 없습니다."
+                )]
+            except Exception as e:
+                logger.log(f"이미지 가져오기 오류: {str(e)}", logger.ERROR)
+                return [TextContent(
+                    type="text",
+                    text=f"이미지 가져오기 중 오류 발생: {str(e)}"
+                )]
+
+        raise ValueError(f"알 수 없는 툴: {name}")
         
     except discord.Forbidden:
-         logger.error(f"권한 오류: 도구 '{name}' 실행에 필요한 권한이 없습니다.")
-         return [TextContent(type="text", text=f"오류: 도구 '{name}' 실행에 필요한 권한이 부족합니다.")]
+         logger.log(f"권한 오류: 툴 '{name}' 실행에 필요한 권한이 없습니다.", logger.ERROR)
+         return [TextContent(type="text", text=f"오류: 툴 '{name}' 실행에 필요한 권한이 부족합니다.")]
     except discord.HTTPException as e:
-         logger.error(f"디스코드 API 오류 ({e.status}): {e.text}")
+         logger.log(f"디스코드 API 오류 ({e.status}): {e.text}", logger.ERROR)
          return [TextContent(type="text", text=f"디스코드 API 오류 발생: {e.text}")]
     except Exception as e:
-        # 기존 오류 로깅 및 반환 유지
-        logger.error(f"도구 호출 오류: {str(e)}")
-        traceback.print_exc() # 상세 스택 트레이스 추가
+        logger.log(f"툴 호출 오류: {str(e)}", logger.ERROR)
         return [TextContent(
             type="text",
             text=f"오류 발생: {str(e)}"
