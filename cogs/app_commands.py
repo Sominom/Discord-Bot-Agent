@@ -3,7 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 from core.config import env
 from core.logger import logger
-from services.database import db
+from services.database import add_chat_channel, delete_chat_channel, get_chat_channels
 
 class AdminCommands(commands.Cog):
     def __init__(self, bot):
@@ -22,9 +22,8 @@ class AdminCommands(commands.Cog):
         channel = interaction.channel
         channel_id = channel.id
         guild_id = interaction.guild.id
-        
-        # 데이터베이스에 채널 추가
-        success = db.add_chat_channel(channel_id, guild_id, channel.name)
+
+        success = add_chat_channel(channel_id, guild_id, channel.name)
         
         if success:
             await interaction.followup.send(f"채널 '{channel.name}'이(가) 대화 채널로 추가되었습니다.")
@@ -42,9 +41,8 @@ class AdminCommands(commands.Cog):
             return
             
         channel_id = interaction.channel.id
-        
-        # 데이터베이스에서 채널 제거
-        success = db.delete_chat_channel(channel_id)
+
+        success = delete_chat_channel(channel_id)
         
         if success:
             await interaction.followup.send(f"채널 '{interaction.channel.name}'이(가) 대화 채널에서 제거되었습니다.")
@@ -60,9 +58,8 @@ class AdminCommands(commands.Cog):
         if not (interaction.user.guild_permissions.administrator or interaction.user.id == env.DISCORD_OWNER_ID):
             await interaction.followup.send("관리자 권한이 필요합니다.")
             return
-            
-        # 데이터베이스에서 채널 목록 가져오기
-        channel_ids = db.get_chat_channels()
+
+        channel_ids = get_chat_channels()
         
         channels = []
         for channel_id in channel_ids:

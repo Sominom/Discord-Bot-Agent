@@ -4,7 +4,6 @@ from discord import app_commands
 import json
 import traceback
 from core.config import env
-from services.database import db
 from services.claude import image_generate
 
 class AICommands(commands.Cog):

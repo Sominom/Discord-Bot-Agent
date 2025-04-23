@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from core.config import env
-from services.database import db
+from services.database import get_setting
 
 def create_image_embed(title: str, description: str, url: str):
     
@@ -15,19 +15,17 @@ def create_image_embed(title: str, description: str, url: str):
 
 
 async def prompt_to_chat(message, username, prompt):
-    
     conversation = []
-    
-    # 데이터베이스에서 설정 가져오기 (없으면 환경변수에서 가져옴)
-    history_num_str = db.get_setting("history_num")
+
+    history_num_str = get_setting("history_num")
     if history_num_str and history_num_str.isdigit():
         history_num = int(history_num_str)
     else:
         history_num = env.HISTORY_NUM
     
-    # 채널의 이전 메시지를 가져옴 (ctx.channel -> message.channel)
+    # 채널의 이전 메시지를 가져옴
     async for chat in message.channel.history(limit=history_num):
-        # 현재 메시지는 제외 (ctx.message.id -> message.id)
+        # 현재 메시지는 제외
         if chat.id == message.id:
             continue
             
@@ -36,8 +34,7 @@ async def prompt_to_chat(message, username, prompt):
         if server_name is None:
             server_name = user.name
             
-        # 봇 메시지와 사용자 메시지를 적절한 형식으로 변환
-        # ctx.bot.user.id -> message.guild.me.id (봇 자신의 ID 확인)
+        # 봇 메시지와 사용자 메시지를 프롬프트 형식으로 변환
         if user.bot and message.guild and user.id == message.guild.me.id:
             conversation.append({"role": "assistant", "content": f"{chat.content}"})
         else:
