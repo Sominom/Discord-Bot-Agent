@@ -3,9 +3,7 @@ import json
 import traceback
 import datetime
 import re
-import logging
 from typing import List, Dict, Any, Optional
-import asyncio
 import anthropic
 import discord
 import base64

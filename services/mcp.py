@@ -1,6 +1,5 @@
 import os
 import asyncio
-import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -8,12 +7,10 @@ from mcp.server import Server
 from mcp.types import Tool, TextContent, EmptyResult
 from mcp.server.stdio import stdio_server
 
+from core.logger import logger
 # 디스코드 관련 import
 import discord
 from discord.ext import commands
-
-# 로깅 설정
-logger = logging.getLogger("discord-mcp-server")
 
 # MCP 서버 초기화
 mcp_app = Server("discord-server")

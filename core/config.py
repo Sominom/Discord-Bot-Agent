@@ -1,13 +1,10 @@
-from core.logger import Logger
+from core.logger import logger
 import json
 import os
-import logging
 from dotenv import load_dotenv
 
 # .env 파일 로드
 load_dotenv()
-
-logger = Logger()
 
 class Config:
     def __init__(self):
