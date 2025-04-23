@@ -1,4 +1,3 @@
-import os
 import asyncio
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -6,8 +5,8 @@ from typing import Any, Dict, List, Optional
 from mcp.server import Server
 from mcp.types import Tool, TextContent, EmptyResult
 from mcp.server.stdio import stdio_server
-
 from core.logger import logger
+
 # 디스코드 관련 import
 import discord
 from discord.ext import commands
@@ -1495,10 +1494,20 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
 
         elif name == "search_channel":
             guild = await discord_client.fetch_guild(int(arguments["server_id"]))
-            query = arguments["channel_name"].lower()
+            query = arguments["channel_name"].lower().strip()
             found_channels = []
-            for channel in guild.channels:
-                if query in channel.name.lower():
+            
+            cache_guild = discord_client.get_guild(int(arguments["server_id"]))
+            
+            if not cache_guild:
+                return [TextContent(type="text", text="서버 정보를 캐시에서 찾을 수 없습니다. 봇이 서버에 제대로 초대되었는지 확인하세요.")]
+            
+            # 캐시된 길드에서 채널 목록 가져오기
+            channels_to_search = cache_guild.channels
+            logger.log(f"채널 목록: {channels_to_search}", logger.INFO)
+            
+            for channel in channels_to_search:
+                if query in channel.name.strip().lower():
                     channel_type_emoji = ""
                     if isinstance(channel, discord.TextChannel):
                         channel_type_emoji = "#️⃣"
