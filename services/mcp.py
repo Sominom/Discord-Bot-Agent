@@ -885,15 +885,13 @@ def auto_fill_message_info(arguments, tool_name=None):
         logger.log("자동 메시지 정보 주입 실패: 추출된 정보 없음", logger.ERROR)
         return arguments
     
-    # 메시지 ID 필드가 필요하고 비어있으면 추가
+    # 메시지 ID 비어있으면 추가
     if "message_id" in str(arguments) and not arguments.get("message_id"):
         arguments["message_id"] = message_id
     
-    # 채널 ID 필드가 필요하고 비어있으면 추가
     if "channel_id" in str(arguments) and not arguments.get("channel_id"):
         arguments["channel_id"] = channel_id
     
-    # 서버 ID 필드가 필요하고 비어있으면 추가
     if "server_id" in str(arguments) and not arguments.get("server_id"):
         arguments["server_id"] = server_id
     
@@ -1065,8 +1063,7 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
                             text="현재 메시지에서 서버 ID를 추출할 수 없습니다."
                         )]
                 
-                # 메시지가 어느 채널에서 왔는지 찾기 위해 모든 서버와 채널을 조회하는 대신,
-                # 전달된 메시지의 채널과 서버 정보를 직접 활용합니다
+                # 캐시에서 메시지 찾기
                 for message_obj in discord_client.cached_messages:
                     if message_obj.id == int(message_id):
                         guild = message_obj.guild
@@ -1077,8 +1074,7 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
                             text=f"서버 ID: {server_id}, 서버 이름: {guild.name}, 채널: {channel.name}"
                         )]
                 
-                # 캐시에서 메시지를 찾지 못한 경우, 기존 방식으로 찾기 시도
-                # 단, 아래 코드는 캐시에 메시지가 없는 경우의 폴백으로만 사용
+                # 캐시에서 메시지를 찾지 못한 경우 서버 전체를 조회
                 for guild in discord_client.guilds:
                     for channel in guild.text_channels:
                         try:
@@ -1228,10 +1224,17 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
 
         # 역할 관리 툴
         elif name == "add_role":
-            guild = await discord_client.fetch_guild(int(arguments["server_id"]))
-            member = await guild.fetch_member(int(arguments["user_id"]))
-            role = guild.get_role(int(arguments["role_id"]))
+            cache_guild = discord_client.get_guild(int(arguments["server_id"]))
             
+            if not cache_guild:
+                return [TextContent(type="text", text="서버 정보를 캐시에서 찾을 수 없습니다. 봇이 서버에 제대로 초대되었는지 확인하세요.")]
+                
+            member = await cache_guild.fetch_member(int(arguments["user_id"]))
+            role = cache_guild.get_role(int(arguments["role_id"]))
+            
+            if not role:
+                return [TextContent(type="text", text=f"역할 ID {arguments['role_id']}를 찾을 수 없습니다.")]
+                
             await member.add_roles(role, reason="MCP를 통해 추가된 역할")
             return [TextContent(
                 type="text",
@@ -1239,10 +1242,17 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             )]
 
         elif name == "remove_role":
-            guild = await discord_client.fetch_guild(int(arguments["server_id"]))
-            member = await guild.fetch_member(int(arguments["user_id"]))
-            role = guild.get_role(int(arguments["role_id"]))
+            cache_guild = discord_client.get_guild(int(arguments["server_id"]))
             
+            if not cache_guild:
+                return [TextContent(type="text", text="서버 정보를 캐시에서 찾을 수 없습니다. 봇이 서버에 제대로 초대되었는지 확인하세요.")]
+                
+            member = await cache_guild.fetch_member(int(arguments["user_id"]))
+            role = cache_guild.get_role(int(arguments["role_id"]))
+            
+            if not role:
+                return [TextContent(type="text", text=f"역할 ID {arguments['role_id']}를 찾을 수 없습니다.")]
+                
             await member.remove_roles(role, reason="MCP를 통해 제거된 역할")
             return [TextContent(
                 type="text",
@@ -1253,8 +1263,15 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
         elif name == "create_text_channel":
             guild = await discord_client.fetch_guild(int(arguments["server_id"]))
             category = None
+            
             if "category_id" in arguments:
-                category = guild.get_channel(int(arguments["category_id"]))
+                cache_guild = discord_client.get_guild(int(arguments["server_id"]))
+                if not cache_guild:
+                    return [TextContent(type="text", text="서버 정보를 캐시에서 찾을 수 없습니다. 봇이 서버에 제대로 초대되었는지 확인하세요.")]
+                
+                category = cache_guild.get_channel(int(arguments["category_id"]))
+                if not category or category.type != discord.ChannelType.category:
+                    return [TextContent(type="text", text="카테고리를 찾을 수 없거나 올바른 카테고리가 아닙니다.")]
             
             channel = await guild.create_text_channel(
                 name=arguments["name"],
@@ -1269,10 +1286,18 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             )]
 
         elif name == "create_voice_channel":
+            # 채널 생성은 fetch_guild를 그대로 사용하지만, 카테고리는 get_guild에서 가져옴
             guild = await discord_client.fetch_guild(int(arguments["server_id"]))
             category = None
+            
             if "category_id" in arguments:
-                category = guild.get_channel(int(arguments["category_id"]))
+                cache_guild = discord_client.get_guild(int(arguments["server_id"]))
+                if not cache_guild:
+                    return [TextContent(type="text", text="서버 정보를 캐시에서 찾을 수 없습니다. 봇이 서버에 제대로 초대되었는지 확인하세요.")]
+                
+                category = cache_guild.get_channel(int(arguments["category_id"]))
+                if not category or category.type != discord.ChannelType.category:
+                    return [TextContent(type="text", text="카테고리를 찾을 수 없거나 올바른 카테고리가 아닙니다.")]
             
             channel = await guild.create_voice_channel(
                 name=arguments["name"],
@@ -1301,8 +1326,12 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             )]
 
         elif name == "delete_category":
-            guild = await discord_client.fetch_guild(int(arguments["server_id"]))
-            category = guild.get_channel(int(arguments["category_id"]))
+            cache_guild = discord_client.get_guild(int(arguments["server_id"]))
+            
+            if not cache_guild:
+                return [TextContent(type="text", text="서버 정보를 캐시에서 찾을 수 없습니다. 봇이 서버에 제대로 초대되었는지 확인하세요.")]
+            
+            category = cache_guild.get_channel(int(arguments["category_id"]))
             
             if not category or category.type != discord.ChannelType.category:
                 return [TextContent(
@@ -1317,8 +1346,12 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             )]
 
         elif name == "move_channel":
-            guild = await discord_client.fetch_guild(int(arguments["server_id"]))
-            channel = guild.get_channel(int(arguments["channel_id"]))
+            cache_guild = discord_client.get_guild(int(arguments["server_id"]))
+            
+            if not cache_guild:
+                return [TextContent(type="text", text="서버 정보를 캐시에서 찾을 수 없습니다. 봇이 서버에 제대로 초대되었는지 확인하세요.")]
+            
+            channel = cache_guild.get_channel(int(arguments["channel_id"]))
             
             if not channel:
                 return [TextContent(
@@ -1328,7 +1361,7 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
                 
             category = None
             if "category_id" in arguments and arguments["category_id"]:
-                category = guild.get_channel(int(arguments["category_id"]))
+                category = cache_guild.get_channel(int(arguments["category_id"]))
                 if not category or category.type != discord.ChannelType.category:
                     return [TextContent(
                         type="text",
@@ -1417,10 +1450,13 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             )]
 
         elif name == "list_categories":
-            guild = await discord_client.fetch_guild(int(arguments["server_id"]))
+            cache_guild = discord_client.get_guild(int(arguments["server_id"]))
+            
+            if not cache_guild:
+                return [TextContent(type="text", text="서버 정보를 캐시에서 찾을 수 없습니다. 봇이 서버에 제대로 초대되었는지 확인하세요.")]
             
             categories = []
-            for category in guild.categories:
+            for category in cache_guild.categories:
                 channel_list = []
                 for channel in category.channels:
                     channel_type = "🔊" if channel.type == discord.ChannelType.voice else "#"
@@ -1582,8 +1618,12 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             return [TextContent(type="text", text=f"역할 '{role.name}' (ID: {role.id})이(가) 성공적으로 생성되었습니다.")]
 
         elif name == "delete_role":
-            guild = await discord_client.fetch_guild(int(arguments["server_id"]))
-            role = guild.get_role(int(arguments["role_id"]))
+            cache_guild = discord_client.get_guild(int(arguments["server_id"]))
+            
+            if not cache_guild:
+                return [TextContent(type="text", text="서버 정보를 캐시에서 찾을 수 없습니다. 봇이 서버에 제대로 초대되었는지 확인하세요.")]
+                
+            role = cache_guild.get_role(int(arguments["role_id"]))
             if not role:
                 return [TextContent(type="text", text=f"역할 ID {arguments['role_id']}를 찾을 수 없습니다.")]
             role_name = role.name
