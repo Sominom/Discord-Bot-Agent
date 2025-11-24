@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-import traceback
 from discord import app_commands
 from services.openai_mcp import chat_with_openai_mcp
 from services.openai_mcp import is_message_for_bot
@@ -128,7 +127,7 @@ class ChatCommands(commands.Cog):
                     await chat_with_openai_mcp(message, server_name, text, image_mode, image_url)
                 except Exception as err:
                     await message.reply(f"에러입니다.\n{str(err)}")
-                    traceback.print_exc()
+                    logger.log(f"채팅 처리 중 오류 발생: {str(err)}", logger.ERROR)
     
     @app_commands.command(name="clear", description="채팅 방을 청소합니다")
     @app_commands.guild_only()

@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-import traceback
 import asyncio
 from core.logger import logger
 from core.config import env
@@ -37,7 +36,6 @@ class InteractiveGPTBot(commands.Bot):
                 self.logger.log(f'확장 기능 로드: {extension}')
             except Exception as e:
                 self.logger.log(f'확장 기능 로드 실패: {extension}\n{str(e)}', self.logger.ERROR)
-                traceback.print_exc()
         
         # MCP 서버 시작 (백그라운드 태스크)
         self.logger.log('MCP 서버 시작 준비...')
@@ -50,7 +48,6 @@ class InteractiveGPTBot(commands.Bot):
             self.logger.log(f'글로벌 명령어 동기화 완료: {len(synced_commands)}개 명령어 동기화됨')
         except Exception as e:
             self.logger.log(f'글로벌 명령어 동기화 실패: {str(e)}', self.logger.ERROR)
-            traceback.print_exc()
         
 
     async def on_ready(self):
@@ -69,7 +66,6 @@ class InteractiveGPTBot(commands.Bot):
 
     async def on_error(self, event, *args, **kwargs):
         self.logger.log(f'이벤트 처리 중 오류 발생: {event}', self.logger.ERROR)
-        traceback.print_exc()
 
 # 봇 실행
 if __name__ == "__main__":

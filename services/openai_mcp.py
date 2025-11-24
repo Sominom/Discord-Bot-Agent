@@ -5,50 +5,26 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import discord
 
-from openai import AsyncOpenAI
-
 from core.config import env
 from core.logger import logger
 from mcp_server import call_tool, get_openai_mcp_tools, set_current_message
 from services.prompts import system_prompts
-
 from services.database import get_setting
-
-_openai_client = None
-
-
-def get_openai_client() -> AsyncOpenAI:
-    """OpenAI 비동기 클라이언트 싱글톤 인스턴스 반환"""
-    global _openai_client
-    if _openai_client is None:
-        try:
-            _openai_client = AsyncOpenAI(api_key=env.OPENAI_API_KEY)
-            logger.log("OpenAI 비동기 클라이언트 초기화 완료")
-        except Exception as e:
-            logger.log(f"OpenAI 클라이언트 초기화 실패: {str(e)}", logger.ERROR)
-            raise
-    return _openai_client
-
+from services.ai_service import ai_service
+from services.discord_service import discord_service
 
 async def image_generate(prompt: str, size: int, reply_message: discord.Message):
     """DALL·E 이미지를 생성하고 응답 메시지를 업데이트합니다."""
     sizestr = ["1024x1024", "1792x1024", "1024x1792"][size]
 
     try:
-        prompt_for_api = prompt if len(prompt) <= 1000 else f"{prompt[:997]}..."
         await reply_message.edit(content="이미지를 생성하는 중... 잠시만 기다려주세요.")
 
-        openai_client = get_openai_client()
-        response = await openai_client.images.generate(
-            model="dall-e-3",
-            prompt=prompt_for_api,
-            n=1,
-            size=sizestr,
-        )
+        images = await ai_service.generate_image(prompt, sizestr)
 
-        for image in response.data:
+        for image in images:
             try:
-                embed = create_image_embed(prompt, prompt, image.url)
+                embed = discord_service.create_image_embed(prompt, prompt, image.url)
                 await reply_message.edit(content="이미지를 생성했습니다.", embed=embed)
                 return
             except discord.HTTPException as exc:
@@ -58,7 +34,7 @@ async def image_generate(prompt: str, size: int, reply_message: discord.Message)
 
         await reply_message.edit(content="이미지 생성 결과가 없습니다.")
     except Exception as err:
-        traceback.print_exc()
+        logger.log(f"이미지 생성 중 오류: {err}", logger.ERROR)
         await _fallback_image_error(reply_message, err)
 
 
@@ -109,28 +85,6 @@ async def execute_tool(tool_name: str, tool_input: Dict[str, Any], message_id: O
     except Exception as exc:
         logger.log(f"툴 실행 오류: {str(exc)}", logger.ERROR)
         return {"type": "error", "message": str(exc)}
-
-
-async def update_discord_message(message: discord.Message, current_text: str, force: bool = False, last_update_length: int = 0):
-    """디스코드 메시지를 일정 간격으로 업데이트합니다."""
-    # 빈 메시지 방지
-    if not current_text:
-        current_text = ". . ."
-        
-    if len(current_text) - last_update_length >= 200 or force:
-        last_update_length = len(current_text)
-
-        if len(current_text) > 1900:
-            current_text = f"{current_text[:1900]}..."
-
-        await message.edit(content=current_text)
-        return last_update_length
-
-    return last_update_length
-
-
-def _get_max_response_tokens() -> int:
-    return getattr(env, "MAX_RESPONSE_TOKENS", 2000)
 
 
 async def _build_initial_conversation(
@@ -190,56 +144,6 @@ async def _prepare_conversation_messages(
     return [*base_prompts, *initial_conversation]
 
 
-async def _ensure_reply_message(message: discord.Message, message_object: Optional[discord.Message]) -> discord.Message:
-    return message_object or await message.reply("...")
-
-
-def _parse_tool_arguments(arguments: Optional[str]) -> Dict[str, Any]:
-    if not arguments:
-        return {}
-    try:
-        return json.loads(arguments)
-    except json.JSONDecodeError as exc:
-        # 스트리밍 중에는 불완전한 JSON일 수 있으므로 경고 로그는 생략하고 빈 딕셔너리 반환 또는 재시도
-        # 여기서는 일단 빈 딕셔너리 반환
-        return {}
-
-
-async def _handle_tool_call(
-    tool_call: Any,
-    reply_message: discord.Message,
-    latest_text_response: str,
-    message_id: int,
-) -> Optional[Dict[str, Any]]:
-    # 이 함수는 이제 스트리밍 로직 내에서 직접 처리되지 않고, 툴 실행 결과만 반환하는 역할로 축소되거나 변경될 수 있음.
-    # 하지만 기존 로직을 재활용하기 위해 유지하되, 메시지 업데이트 로직은 상위 레벨에서 제어함.
-    
-    tool_name = tool_call.function.name
-    tool_args_str = tool_call.function.arguments
-    
-    # 스트리밍에서 완성된 arguments 파싱
-    try:
-        tool_args = json.loads(tool_args_str)
-    except json.JSONDecodeError:
-        tool_args = {}
-
-    tool_result = await execute_tool(tool_name, tool_args, message_id)
-
-    if tool_result["type"] == "image_generation":
-        await image_generate(tool_result["prompt"], tool_result["size"], reply_message)
-        tool_content = f"이미지 생성 완료: '{tool_result['prompt']}'"
-    elif tool_result["type"] == "error":
-        return None # 상위에서 처리
-    else:
-        tool_content = tool_result["content"]
-
-    return {
-        "role": "tool",
-        "tool_call_id": tool_call.id,
-        "content": tool_content,
-    }
-
-
 async def chat_with_openai_mcp(
     message: discord.Message,
     username: str,
@@ -250,7 +154,7 @@ async def chat_with_openai_mcp(
 ):
     """OpenAI Chat Completions + MCP 툴 루프 (스트리밍 지원)."""
     messages = await _prepare_conversation_messages(message, username, prompt, img_mode, img_url)
-    reply_message = await _ensure_reply_message(message, message_object)
+    reply_message = await discord_service.ensure_reply_message(message, message_object)
 
     try:
         max_tool_rounds = 50
@@ -261,7 +165,7 @@ async def chat_with_openai_mcp(
         last_update_length = 0
 
         openai_tools = await get_openai_mcp_tools()
-        client = get_openai_client()
+        client = ai_service.client
 
         while current_round < max_tool_rounds:
             current_round += 1
@@ -269,7 +173,7 @@ async def chat_with_openai_mcp(
             response = await client.chat.completions.create(
                 model=env.OPENAI_MODEL,
                 messages=messages,
-                max_completion_tokens=_get_max_response_tokens(),
+                max_completion_tokens=ai_service.get_max_response_tokens(),
                 tools=openai_tools,
                 tool_choice="auto",
                 stream=True, # 스트리밍 활성화
@@ -288,7 +192,7 @@ async def chat_with_openai_mcp(
                     display_text += delta.content
                     
                     # 40자 단위 업데이트 (텍스트만 표시)
-                    last_update_length = await update_discord_message(
+                    last_update_length = await discord_service.update_message(
                         reply_message,
                         display_text,
                         last_update_length=last_update_length
@@ -345,22 +249,10 @@ async def chat_with_openai_mcp(
                 # 툴 사용 중 메시지 표시 (기존 텍스트 유지 + 툴 알림 추가)
                 tool_names = ", ".join([tc["function"]["name"] for tc in tool_calls_list])
                 temp_display_text = f"{display_text}\n\n🛠️ `{tool_names}` 도구 사용 중..."
-                await update_discord_message(reply_message, temp_display_text, force=True)
+                await discord_service.update_message(reply_message, temp_display_text, force=True)
                 
                 for tc in tool_calls_list:
-                    # 가짜 객체 생성 (호환성 유지)
-                    class ToolCallObj:
-                        def __init__(self, d):
-                            self.id = d['id']
-                            self.type = d['type']
-                            self.function = type('Function', (), {'name': d['function']['name'], 'arguments': d['function']['arguments']})
-                            
-                    tool_obj = ToolCallObj(tc)
-                    
-                    # 툴 실행 (UI 업데이트 로직은 위에서 일괄 처리했으므로 내부에서는 결과만 받음)
-                    # 기존 _handle_tool_call 함수를 조금 수정하거나 여기서 직접 호출
-                    # 여기서는 직접 호출하여 메시지 수정을 제어함
-                    
+                    # 툴 실행
                     try:
                         tool_args = json.loads(tc["function"]["arguments"])
                     except json.JSONDecodeError:
@@ -385,13 +277,13 @@ async def chat_with_openai_mcp(
                 
                 messages.extend(tool_responses)
                 
-                await update_discord_message(reply_message, display_text, force=True)
+                await discord_service.update_message(reply_message, display_text, force=True)
                 
                 # 최대 툴 호출 체크
                 if current_round == max_tool_rounds:
                     logger.log("최대 툴 호출 도달", logger.WARNING)
                     display_text += "\n\n[최대 툴 호출 횟수에 도달했습니다.]"
-                    await update_discord_message(reply_message, display_text, force=True)
+                    await discord_service.update_message(reply_message, display_text, force=True)
                     break
                     
             else:
@@ -399,7 +291,7 @@ async def chat_with_openai_mcp(
                 messages.append(assistant_msg)
                 
                 # 마지막으로 강제 업데이트 (남은 텍스트 표시)
-                await update_discord_message(reply_message, display_text, force=True)
+                await discord_service.update_message(reply_message, display_text, force=True)
                 
                 logger.log("툴 호출 없음, 루프 종료.", logger.INFO)
                 break
@@ -415,25 +307,6 @@ async def _handle_chat_failure(message: discord.Message, reply_message: discord.
         await reply_message.edit(content=f"오류가 발생했습니다: {str(exc)}")
     except Exception:
         await message.reply(f"오류가 발생했습니다: {str(exc)}")
-
-
-def create_image_embed(title: str, description: str, url: str):
-    
-    # 제목 길이 제한 (임베드 title 최대 256자)
-    if len(title) > 250:
-        title = title[:247] + "..."
-    
-    # 설명 길이 제한 (디스코드 임베드 description 최대 4096자)
-    if len(description) > 4000:
-        description = description[:3997] + "..."
-    
-    embed = discord.Embed(
-        title=title,
-        description=description,
-    )
-    embed.set_thumbnail(url=url)
-    embed.set_image(url=url)
-    return embed
 
 
 async def prompt_to_chat(message, username, prompt):
@@ -473,35 +346,6 @@ async def prompt_to_chat(message, username, prompt):
     
     return conversation
 
+# Re-export is_message_for_bot for backward compatibility
 async def is_message_for_bot(message_content: str, username: str, bot_name: str, recent_messages: List[dict] = None) -> Tuple[bool, float]:
-    try:
-        # 메시지 컨텍스트 구성
-        context = ""
-        if recent_messages:
-            for msg in recent_messages:
-                author = "봇" if msg["is_bot"] else msg["author"]
-                context += f"{author}: {msg['content']}\n"
-        
-        # OpenAI API 요청
-        openai_client = get_openai_client()
-        response = await openai_client.chat.completions.create(
-            model="gpt-4o-mini", # 모델명도 수정 (4.1-nano 등은 없는 모델일 수 있음)
-            messages=[
-                {"role": "system", "content": f"당신은 메시지가 봇에게 보내는 것인지 판단하는 AI입니다. 최근 대화 맥락과 메시지 내용을 분석하여 메시지가 '{bot_name}'에게 보내는 것인지 판단하세요."},
-                {"role": "user", "content": f"최근 대화 맥락:\n{context}\n\n사용자 '{username}'의 새 메시지: {message_content}\n\n이 메시지가 봇('{bot_name}')에게 보내는 것인지 판단하세요. JSON 형식으로 다음을 반환하세요: {{\"is_for_bot\": true/false, \"confidence\": 0~1, \"reason\": \"판단 이유\"}}"}
-            ],
-        )
-        
-        # 응답 추출
-        result_text = response.choices[0].message.content
-        try:
-            result = json.loads(result_text)
-            is_for_bot = result.get("is_for_bot", False)
-            confidence = result.get("confidence", 0)
-            return is_for_bot, confidence
-        except json.JSONDecodeError:
-            logger.log(f"JSON 파싱 오류: {result_text}", logger.ERROR)
-            return False, 0
-    except Exception as e:
-        logger.log(f"메시지 판단 오류: {str(e)}", logger.ERROR)
-        return False, 0
+    return await ai_service.is_message_for_bot(message_content, username, bot_name, recent_messages)

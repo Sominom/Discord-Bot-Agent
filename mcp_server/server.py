@@ -1,4 +1,6 @@
 import asyncio
+import pkgutil
+import importlib
 from typing import Any
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -6,21 +8,25 @@ from mcp.types import Tool, TextContent
 from core.logger import logger
 from mcp_server.registry import tool_registry
 from mcp_server.context import global_context
-
-# 툴 모듈 로드 (여기서 import해야 레지스트리에 등록됩니다)
-import mcp_server.tools.channel
-import mcp_server.tools.message
-import mcp_server.tools.search 
-import mcp_server.tools.member
-import mcp_server.tools.role
-import mcp_server.tools.server
-import mcp_server.tools.image
-# 추가된 툴 모듈들을 계속 여기에 추가해야 합니다.
+import mcp_server.tools
 
 class MCPServer:
     def __init__(self, name: str = "discord-server"):
         self.app = Server(name)
+        self.load_tools()
         self.setup_handlers()
+
+    def load_tools(self):
+        """mcp_server.tools 패키지 내의 모든 모듈을 자동으로 로드합니다."""
+        package = mcp_server.tools
+        prefix = package.__name__ + "."
+
+        for _, name, _ in pkgutil.iter_modules(package.__path__, prefix):
+            try:
+                importlib.import_module(name)
+                logger.log(f"MCP 툴 모듈 로드: {name}", logger.INFO)
+            except Exception as e:
+                logger.log(f"MCP 툴 모듈 로드 실패 ({name}): {e}", logger.ERROR)
 
     def setup_handlers(self):
         @self.app.list_tools()
