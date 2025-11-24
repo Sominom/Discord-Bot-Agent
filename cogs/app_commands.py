@@ -74,7 +74,7 @@ class AdminCommands(commands.Cog):
             return
             
         embed = discord.Embed(
-            title="GPT 대화 채널 목록",
+            title="대화 채널 목록",
             description="\n".join(channels),
             color=discord.Color.blue()
         )

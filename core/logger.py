@@ -65,8 +65,14 @@ class Logger:
             formatted_message = self.logger.handlers[0].formatter.format(record)
         else:
             formatted_message = record.getMessage()
-        print(f"{log_color}{formatted_message}{Style.RESET_ALL}")
+        
+        # Stdio 통신을 위해 stdout 대신 stderr 사용
+        import sys
+        sys.stderr.write(f"{log_color}{formatted_message}{Style.RESET_ALL}\n")
+        sys.stderr.flush()
 
+
+import sys
 
 class LogHandler(logging.Handler):
     

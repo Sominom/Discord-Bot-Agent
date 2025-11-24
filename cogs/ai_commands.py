@@ -4,7 +4,7 @@ from discord import app_commands
 import json
 import traceback
 from core.config import env
-from services.claude import image_generate
+from services.openai_mcp import image_generate
 
 class AICommands(commands.Cog):
     def __init__(self, bot):
