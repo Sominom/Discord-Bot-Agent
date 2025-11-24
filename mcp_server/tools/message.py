@@ -100,15 +100,22 @@ async def read_messages(arguments: dict):
             "timestamp": message.created_at.isoformat(),
             "reactions": reaction_data
         })
-    return [TextContent(
-        type="text",
-        text=f"{len(messages)}개 메시지 조회 결과:\n\n" + 
-                "\n".join([
-                    f"{m['author']} ({m['timestamp']}): {m['content']}\n" +
-                    f"반응: {', '.join([f'{r['emoji']}({r['count']})' for r in m['reactions']]) if m['reactions'] else '없음'}"
-                    for m in messages
-                ])
-    )]
+    lines = []
+    for m in messages:
+        reactions_str = ", ".join(
+            [f"{r['emoji']}({r['count']})" for r in m["reactions"]]
+        ) if m["reactions"] else "없음"
+        lines.append(
+            f"{m['author']} ({m['timestamp']}): {m['content']}\n반응: {reactions_str}"
+        )
+
+    return [
+        TextContent(
+            type="text",
+            text=f"{len(messages)}개 메시지 조회 결과:\n\n" + "\n".join(lines),
+        )
+    ]
+
 
 MODERATE_MESSAGE_SCHEMA = {
     "type": "object",

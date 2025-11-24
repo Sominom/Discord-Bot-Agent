@@ -11,11 +11,13 @@ class DiscordService:
         if len(current_text) - last_update_length >= 200 or force:
             last_update_length = len(current_text)
 
-            if len(current_text) > 1900:
-                current_text = f"{current_text[:1900]}..."
+            # 디스코드 제한은 2000자이므로, 초과분은 openai_mcp 등 호출하는 쪽에서 나눠 보냄
+            edit_text = current_text
+            if len(edit_text) > 2000:
+                edit_text = edit_text[:2000]
 
             try:
-                await message.edit(content=current_text)
+                await message.edit(content=edit_text)
             except Exception as e:
                 logger.log(f"메시지 업데이트 실패: {str(e)}", logger.WARNING)
             return last_update_length

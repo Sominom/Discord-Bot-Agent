@@ -27,10 +27,16 @@ class ChatCommands(commands.Cog):
 
         # 채팅 채널 확인
         chat_channels = get_chat_channels()
-        if channel.id not in chat_channels:
-            logger.log(f"채팅 채널이 아니므로 무시: {channel.name}", logger.INFO)
-            return
-            
+        is_chat_channel = channel.id in chat_channels
+        
+        # 채팅 채널이 아닌 경우, 멘션이 없으면 무시
+        if not is_chat_channel:
+            if not self.bot.user in message.mentions:
+                logger.log(f"채팅 채널이 아니고 멘션도 아니므로 무시: {channel.name}", logger.INFO)
+                return
+            else:
+                logger.log(f"채팅 채널은 아니지만 멘션이 있어 처리: {channel.name}", logger.INFO)
+        
         # 빈 메시지 무시
         text = message.content
         if text == "":
@@ -105,21 +111,25 @@ class ChatCommands(commands.Cog):
         )
                 
         # 봇에게 보내는 메시지로 판단된 경우
-        if channel.id in chat_channels and (is_for_bot or confidence >= self.confidence_threshold):
-            # 메시지가 대화를 종료하는 내용인지 판단 (MCP 도구 사용)
+        # 멘션이 있으면 무조건 응답 대상으로 간주
+        should_respond = is_for_bot or confidence >= self.confidence_threshold
+        if self.bot.user in message.mentions:
+            should_respond = True
+
+        if should_respond:
+            # 메시지가 대화를 종료하는 내용인지 판단
             try:
-                result = await call_tool("judge_conversation_ending", {"message_content": text})
-                if result and "is_ending" in result and result["is_ending"]:
-                    suggested_emoji = result.get("suggested_emoji")
-                    if suggested_emoji:
-                        try:
-                            await message.add_reaction(suggested_emoji)
-                        except Exception as e:
-                            # 이모지 추가에 실패해도 계속 진행
-                            pass
+                await call_tool(
+                    "judge_conversation_ending",
+                    {
+                        "message_content": text,
+                        "channel_id": str(channel.id),
+                        "message_id": str(message.id),
+                    },
+                )
             except Exception as e:
-                # MCP 도구 호출 실패 시 무시하고 계속 진행
-                pass
+                # MCP 도구 호출 실패 시 로그 남기고 계속 진행
+                logger.log(f"judge_conversation_ending 툴 호출 실패: {str(e)}", logger.ERROR)
             
             async with channel.typing():
                 try:

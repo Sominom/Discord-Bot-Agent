@@ -8,7 +8,7 @@ import discord
 from core.config import env
 from core.logger import logger
 from mcp_server import call_tool, get_openai_mcp_tools, set_current_message
-from services.prompts import system_prompts
+from services.prompts import system_prompts, assistant_prompts_start
 from services.database import get_setting
 from services.ai_service import ai_service
 from services.discord_service import discord_service
@@ -140,8 +140,14 @@ async def _prepare_conversation_messages(
     img_url: Optional[str],
 ) -> List[Dict[str, Any]]:
     base_prompts = _build_system_prompts(message)
-    initial_conversation = await _build_initial_conversation(message, username, prompt, img_mode, img_url)
-    return [*base_prompts, *initial_conversation]
+    initial_conversation = await _build_initial_conversation(
+        message, username, prompt, img_mode, img_url
+    )
+
+    # 과거에 이미 이런 식으로 대화를 시작했다는 느낌의 초기 어시스턴트 메시지를 붙임
+    starter_prompts = assistant_prompts_start or []
+
+    return [*base_prompts, *starter_prompts, *initial_conversation]
 
 
 async def chat_with_openai_mcp(
@@ -282,16 +288,43 @@ async def chat_with_openai_mcp(
                 # 최대 툴 호출 체크
                 if current_round == max_tool_rounds:
                     logger.log("최대 툴 호출 도달", logger.WARNING)
-                    display_text += "\n\n[최대 툴 호출 횟수에 도달했습니다.]"
-                    await discord_service.update_message(reply_message, display_text, force=True)
+                    warning_msg = "\n\n[최대 툴 호출 횟수에 도달했습니다.]"
+                    display_text += warning_msg
+                    
+                    if len(display_text) > 2000:
+                         # 2000자 초과 시 분할 전송
+                        await discord_service.update_message(reply_message, display_text[:2000], force=True)
+                        remaining = display_text[2000:]
+                        while remaining:
+                            chunk = remaining[:2000]
+                            remaining = remaining[2000:]
+                            await reply_message.channel.send(chunk)
+                    else:
+                        await discord_service.update_message(reply_message, display_text, force=True)
                     break
                     
             else:
                 # 툴 호출이 없으면 대화 종료
                 messages.append(assistant_msg)
                 
-                # 마지막으로 강제 업데이트 (남은 텍스트 표시)
-                await discord_service.update_message(reply_message, display_text, force=True)
+                # 최종 업데이트
+                if len(display_text) > 2000:
+                    # 첫 2000자는 기존 메시지 수정
+                    await discord_service.update_message(reply_message, display_text[:2000], force=True)
+                    
+                    # 나머지는 2000자 단위로 나누어 새 메시지로 전송
+                    remaining_text = display_text[2000:]
+                    while remaining_text:
+                        chunk = remaining_text[:2000]
+                        remaining_text = remaining_text[2000:]
+                        try:
+                            await reply_message.channel.send(chunk)
+                        except Exception as e:
+                            logger.log(f"메시지 분할 전송 실패: {str(e)}", logger.ERROR)
+                            break
+                else:
+                    # 2000자 이하면 그냥 업데이트
+                    await discord_service.update_message(reply_message, display_text, force=True)
                 
                 logger.log("툴 호출 없음, 루프 종료.", logger.INFO)
                 break
