@@ -300,7 +300,212 @@ async def remove_reaction(arguments: dict):
     message = await channel.fetch_message(int(arguments["message_id"]))
     client = global_context.get_client()
     await message.remove_reaction(arguments["emoji"], client.user)
-    return [TextContent(
-        type="text",
-        text=f"메시지에서 {arguments['emoji']} 반응 제거 완료"
-    )]
+    return [
+        TextContent(
+            type="text",
+            text=f"메시지에서 {arguments['emoji']} 반응 제거 완료",
+        )
+    ]
+
+
+LIST_RECENT_BOT_MESSAGES_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "channel_id": {
+            "type": "string",
+            "description": "메시지를 조회할 채널 ID (없으면 현재 메시지의 채널 사용)",
+        },
+        "limit": {
+            "type": "integer",
+            "description": "가져올 최근 봇 메시지 수 (최대 20)",
+            "minimum": 1,
+            "maximum": 20,
+        },
+    },
+    "required": [],
+}
+
+
+@tool_registry.register(
+    "list_recent_bot_messages",
+    "현재 채널에서 최근 봇 메시지 목록을 조회하여 메시지 ID와 함께 요약을 제공합니다.",
+    LIST_RECENT_BOT_MESSAGES_SCHEMA,
+)
+async def list_recent_bot_messages(arguments: dict):
+    """최근 봇 메시지들을 요약해서 보여줘서, 사용자가 편집할 메시지를 고를 수 있게 해주는 툴."""
+    client = global_context.get_client()
+    channel_id = arguments.get("channel_id")
+
+    if channel_id:
+        channel = await global_context.fetch_channel(int(channel_id))
+    else:
+        current_msg = global_context.get_current_message()
+        if not current_msg:
+            return [TextContent(type="text", text="현재 메시지 컨텍스트를 찾을 수 없습니다.")]
+        channel = current_msg.channel
+
+    limit = int(arguments.get("limit", 10))
+    limit = max(1, min(limit, 20))
+
+    results = []
+    async for msg in channel.history(limit=100):
+        if not msg.author.bot:
+            continue
+        if client and msg.author.id != client.user.id:
+            # 다른 봇이 보낸 메시지는 제외
+            continue
+
+        content = msg.content or ""
+        # 너무 길면 앞부분만 표시
+        if len(content) > 80:
+            content = content[:77] + "..."
+
+        results.append(
+            {
+                "id": str(msg.id),
+                "created_at": msg.created_at.isoformat(),
+                "content_preview": content,
+            }
+        )
+
+        if len(results) >= limit:
+            break
+
+    if not results:
+        return [
+            TextContent(
+                type="text",
+                text="최근 봇 메시지를 찾을 수 없습니다. (현재 채널 기준)",
+            )
+        ]
+
+    lines = []
+    for idx, m in enumerate(results, start=1):
+        lines.append(
+            f"[{idx}] ID={m['id']} ({m['created_at']}): {m['content_preview']}"
+        )
+
+    return [
+        TextContent(
+            type="text",
+            text="최근 봇 메시지 목록입니다. 편집하고 싶은 메시지의 ID를 선택하세요:\n\n"
+            + "\n".join(lines),
+        )
+    ]
+
+
+EDIT_MESSAGE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "channel_id": {
+            "type": "string",
+            "description": "편집할 메시지가 있는 채널 ID (없으면 현재 메시지의 채널 사용)",
+        },
+        "message_id": {
+            "type": "string",
+            "description": "편집할 대상 메시지 ID",
+        },
+        "new_content": {
+            "type": "string",
+            "description": "새로운 메시지 내용",
+        },
+    },
+    "required": ["message_id", "new_content"],
+}
+
+# 메시지 편집 이력 저장소 (메모리)
+_edit_history = {}
+_last_edited_id = None
+
+@tool_registry.register(
+    "edit_message",
+    "지정한 메시지의 내용을 새 텍스트로 수정합니다.",
+    EDIT_MESSAGE_SCHEMA,
+)
+async def edit_message(arguments: dict):
+    """특정 메시지 내용을 새 텍스트로 교체하는 툴."""
+    global _last_edited_id
+    
+    channel_id = arguments.get("channel_id")
+    message_id = arguments["message_id"]
+    new_content = arguments["new_content"]
+
+    if channel_id:
+        channel = await global_context.fetch_channel(int(channel_id))
+    else:
+        current_msg = global_context.get_current_message()
+        if not current_msg:
+            return [TextContent(type="text", text="현재 메시지 컨텍스트를 찾을 수 없습니다.")]
+        channel = current_msg.channel
+
+    try:
+        target_msg = await channel.fetch_message(int(message_id))
+    except discord.NotFound:
+        return [TextContent(type="text", text="해당 메시지를 찾을 수 없습니다.")]
+
+    # 수정 전 원본 저장
+    _edit_history[target_msg.id] = target_msg.content
+    _last_edited_id = target_msg.id
+
+    await target_msg.edit(content=new_content)
+
+    return [
+        TextContent(
+            type="text",
+            text=f"메시지(ID={message_id}) 내용을 성공적으로 수정했습니다. (이전 내용은 저장됨)",
+        )
+    ]
+
+UNDO_EDIT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "channel_id": {"type": "string", "description": "채널 ID (선택)"},
+        "message_id": {"type": "string", "description": "되돌릴 메시지 ID (생략 시 가장 최근에 수정한 메시지)"}
+    },
+    "required": []
+}
+
+@tool_registry.register(
+    "undo_edit_message",
+    "최근 수정한 메시지를 수정 전 원래 내용으로 되돌립니다.",
+    UNDO_EDIT_SCHEMA
+)
+async def undo_edit_message(arguments: dict):
+    global _last_edited_id
+    
+    target_id = arguments.get("message_id")
+    if not target_id:
+        if not _last_edited_id:
+            return [TextContent(type="text", text="최근 수정 이력이 없습니다.")]
+        target_id = str(_last_edited_id)
+        
+    target_id_int = int(target_id)
+    
+    if target_id_int not in _edit_history:
+        return [TextContent(type="text", text=f"메시지 ID {target_id}의 이전 버전을 찾을 수 없습니다.")]
+        
+    original_content = _edit_history[target_id_int]
+    
+    # 채널 찾기
+    channel_id = arguments.get("channel_id")
+    if channel_id:
+        channel = await global_context.fetch_channel(int(channel_id))
+    else:
+        msg = global_context.get_current_message()
+        if msg:
+            channel = msg.channel
+        else:
+             return [TextContent(type="text", text="채널 정보를 찾을 수 없습니다. channel_id를 입력해주세요.")]
+
+    try:
+        target_msg = await channel.fetch_message(target_id_int)
+        await target_msg.edit(content=original_content)
+        
+        # 복원 후 이력에서 삭제? 아니면 유지? -> 유지하는 게 안전 (Redo는 없지만)
+        # _last_edited_id는 그대로 두거나 갱신. 여기선 그대로 둠.
+        
+        return [TextContent(type="text", text=f"메시지(ID={target_id})를 수정 전 상태로 복원했습니다.")]
+    except discord.NotFound:
+        return [TextContent(type="text", text="해당 메시지가 삭제되어 복원할 수 없습니다.")]
+    except Exception as e:
+        return [TextContent(type="text", text=f"복원 중 오류 발생: {str(e)}")]

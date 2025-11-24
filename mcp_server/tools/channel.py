@@ -2,8 +2,67 @@ from mcp_server.registry import tool_registry
 from mcp_server.context import global_context
 from mcp.types import TextContent
 import discord
+from services.database import add_chat_channel as db_add_chat_channel, delete_chat_channel as db_delete_chat_channel
 
-# 스키마 정의를 상수로 분리하여 가독성 향상
+ADD_CHAT_CHANNEL_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "channel_id": {"type": "string", "description": "추가할 채널 ID (생략 시 현재 채널)"}
+    },
+    "required": []
+}
+
+@tool_registry.register("add_chat_channel", "봇이 대화에 참여할 채널로 추가 (이 채널의 메시지를 읽고 반응하게 됨)", ADD_CHAT_CHANNEL_SCHEMA)
+async def add_chat_channel(arguments: dict):
+    channel_id = arguments.get("channel_id")
+    
+    if channel_id:
+        channel = await global_context.fetch_channel(int(channel_id))
+    else:
+        msg = global_context.get_current_message()
+        if not msg:
+             return [TextContent(type="text", text="현재 메시지 컨텍스트가 없어 채널 ID를 지정해야 합니다.")]
+        channel = msg.channel
+        
+    guild_id = channel.guild.id if hasattr(channel, "guild") else 0
+    
+    success = db_add_chat_channel(channel.id, guild_id, channel.name)
+    
+    if success:
+        return [TextContent(type="text", text=f"채널 '{channel.name}'(ID: {channel.id})이(가) 대화 채널로 추가되었습니다. 이제 여기서 봇과 자유롭게 대화할 수 있습니다.")]
+    else:
+        return [TextContent(type="text", text="채널 추가 중 오류가 발생했습니다.")]
+
+REMOVE_CHAT_CHANNEL_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "channel_id": {"type": "string", "description": "제거할 채널 ID (생략 시 현재 채널)"}
+    },
+    "required": []
+}
+
+@tool_registry.register("remove_chat_channel", "봇 대화 채널 목록에서 제거 (더 이상 이 채널에서 자동 반응하지 않음)", REMOVE_CHAT_CHANNEL_SCHEMA)
+async def remove_chat_channel(arguments: dict):
+    channel_id = arguments.get("channel_id")
+    
+    if channel_id:
+        channel = await global_context.fetch_channel(int(channel_id))
+        c_id = channel.id
+        c_name = channel.name
+    else:
+        msg = global_context.get_current_message()
+        if not msg:
+             return [TextContent(type="text", text="현재 메시지 컨텍스트가 없어 채널 ID를 지정해야 합니다.")]
+        c_id = msg.channel.id
+        c_name = msg.channel.name if hasattr(msg.channel, "name") else "DM"
+        
+    success = db_delete_chat_channel(c_id)
+    
+    if success:
+        return [TextContent(type="text", text=f"채널 '{c_name}'(ID: {c_id})이(가) 대화 채널에서 제거되었습니다.")]
+    else:
+        return [TextContent(type="text", text=f"채널 제거 실패: ID {c_id}를 목록에서 찾을 수 없습니다.")]
+
 CREATE_TEXT_CHANNEL_SCHEMA = {
     "type": "object",
     "properties": {
