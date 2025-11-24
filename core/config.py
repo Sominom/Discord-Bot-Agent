@@ -18,7 +18,7 @@ class Settings:
         self.DISCORD_OWNER_ID = os.getenv("DISCORD_OWNER_ID")
         
         self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-        self.OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
+        self.OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
         
         self.GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
         self.CUSTOM_SEARCH_ENGINE_ID = os.getenv("CUSTOM_SEARCH_ENGINE_ID")
