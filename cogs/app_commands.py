@@ -15,7 +15,7 @@ class AdminCommands(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         # 관리자 또는 봇 소유자 권한 확인
-        if not (interaction.user.guild_permissions.administrator or interaction.user.id == env.DISCORD_OWNER_ID):
+        if not (interaction.user.guild_permissions.administrator or str(interaction.user.id) in env.DISCORD_OWNER_IDS):
             await interaction.followup.send("관리자 권한이 필요합니다.")
             return
             
@@ -36,7 +36,7 @@ class AdminCommands(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         # 관리자 또는 봇 소유자 권한 확인
-        if not (interaction.user.guild_permissions.administrator or interaction.user.id == env.DISCORD_OWNER_ID):
+        if not (interaction.user.guild_permissions.administrator or str(interaction.user.id) in env.DISCORD_OWNER_IDS):
             await interaction.followup.send("관리자 권한이 필요합니다.")
             return
             
@@ -55,7 +55,7 @@ class AdminCommands(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         # 관리자 또는 봇 소유자 권한 확인
-        if not (interaction.user.guild_permissions.administrator or interaction.user.id == env.DISCORD_OWNER_ID):
+        if not (interaction.user.guild_permissions.administrator or str(interaction.user.id) in env.DISCORD_OWNER_IDS):
             await interaction.followup.send("관리자 권한이 필요합니다.")
             return
 
@@ -74,7 +74,7 @@ class AdminCommands(commands.Cog):
             return
             
         embed = discord.Embed(
-            title="GPT 대화 채널 목록",
+            title="대화 채널 목록",
             description="\n".join(channels),
             color=discord.Color.blue()
         )

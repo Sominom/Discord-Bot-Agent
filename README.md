@@ -1,6 +1,6 @@
 
 ## 기능
-- Claude와 실시간 대화
+- OpenAI GPT + MCP 기반 실시간 대화
 - DALL-E를 통한 이미지 생성
 - 디스코드 채널 관리 기능 (MCP 통합)
 - 역할 관리, 메시지 관리 등 다양한 디스코드 관리 기능
@@ -13,22 +13,26 @@
 pip install -r requirements.txt
 ```
 
-2. `.env` 파일 설정
-```
-# 필수 설정
-DISCORD_BOT_KEY=your_discord_bot_token
-DISCORD_OWNER_ID=your_discord_id
+2. `config.json` 파일 설정
 
-# API 키 설정
-OPENAI_API_KEY=your_openai_api_key
-CLAUDE_API_KEY=your_claude_api_key
+`config.json.sample` 파일을 `config.json`으로 복사하고 설정을 입력합니다.
 
-# 모델 설정 (GPT 모델은 system 프롬프트가 지원되는 모델이어야 합니다. -- 추후 수정 예정)
-OPENAI_MODEL=gpt-4-turbo
-CLAUDE_MODEL=claude-3-opus-20240229
-
-# 데이터베이스 설정
-DATABASE_URL=sqlite:///bot.db
+```json
+{
+  "BOT_NAME": "괴상한 봇",
+  "BOT_IDENTITY": "당신은 괴상한 개발자 모임인 괴상한 괴발자 디스코드 채널의 봇입니다. 당신은 괴상한 개발자 모임의 일원이며, 디스코드 서버를 관리하고, 개발자들을 돕습니다.",
+  "BOT_START_MESSAGE": "앗! 안녕하세요! 저는 괴상한 봇입니다! 무엇이든 물어봐주세요! U3U~ <3",
+  "DISCORD_BOT_KEY": "",
+  "OPENAI_API_KEY": "",
+  "OPENAI_MODEL": "gpt-4.1-mini",
+  "GOOGLE_API_KEY": "",
+  "CUSTOM_SEARCH_ENGINE_ID": "",
+  "HISTORY_NUM": 5,
+  "DISCORD_OWNER_IDS": ["your_discord_id1", "your_discord_id2"],
+  "MAX_HISTORY_COUNT": 10,
+  "MAX_RESPONSE_TOKENS": 2000,
+  "VERTEX_API_KEY": ""
+}
 ```
 
 3. 봇 실행
@@ -38,15 +42,14 @@ python bot.py
 
 ## MCP(Model Context Protocol) 통합
 
-디스코드 인터페이스와 AI 모델 간의 상호작용을 위한 MCP(Model Context Protocol) 서버를 구현합니다.
-이 프로젝트는 채팅으로 디스코드 서버 관리 기능을 자동화합니다.
-추가로 이미지 생성, 검색 등의 기능도 사용할 수 있습니다.
+디스코드 인터페이스와 OpenAI GPT 모델 간 상호작용을 위해 MCP(Model Context Protocol) 서버를 내장합니다.
+이 프로젝트는 채팅을 통해 디스코드 서버 관리 기능을 자동화하며 이미지 생성, 검색 등의 기능도 제공합니다.
 
 시스템 구성:
-- MCP 서버는 Discord 애플리케이션과 동일한 프로세스에서 실행되며, WebSocket 기반 통신을 제공합니다.
-- 채팅 입력시 상대적으로 저렴한 GPT-4o-mini 모델로 최근 채팅 내용을 분석하여 봇에게 채팅 요청을 하는지 판단하여 Claude 모델로 전달합니다.
-- Claude 모델이 사용자 의도를 분석하여 적절한 MCP 툴을 선택 및 실행하고, 일반적인 대화도 가능합니다.
-- 디스코드 채팅 인터페이스가 MCP 클라이언트 역할을 수행하여 사용자와 시스템 간 상호작용을 중개합니다.
+- MCP 서버는 Discord 애플리케이션과 동일한 프로세스에서 실행되며 stdio 기반으로 통신합니다.
+- 채팅 입력 시 GPT-4.1 계열 모델이 메시지가 봇을 향한 것인지 판단합니다.
+- 본 대화 엔진은 OpenAI Chat Completions + MCP 툴을 사용하여 사용자 의도를 분석하고 필요한 툴을 실행합니다.
+- 디스코드 채팅 인터페이스는 MCP 툴 실행 결과를 사용자에게 실시간으로 전달합니다.
 
 복잡한 디스코드 서버 관리 작업을 단순한 채팅 명령으로 수행할 수 있게 하여 관리 효율성을 크게 향상시킵니다.
 
@@ -121,35 +124,29 @@ python bot.py
    - 메시지가 봇에게 보내지는 것인지 판단하는 기능이 있어 명령투로 말하거나 봇 이름을 언급하면 봇이 응답합니다.
    - 예: "괴상한봇아, 새 역할을 만들어줘" 또는 "ㅇㅇㅇ에 대해 검색해줘"
 
-## Claude 연동 방식
+## OpenAI MCP 연동 방식
 
-이 봇은 Anthropic의 Claude 모델과 상호작용하여 사용자 요청을 처리하고 대화를 진행합니다.
+이 봇은 OpenAI Chat Completions API와 MCP 툴을 조합하여 사용자 요청을 처리합니다.
 
 1.  **초기 설정**:
     *   사용자 메시지(`message`)와 프롬프트(`prompt`)를 기반으로 대화 기록(`initial_conversation`)을 준비합니다. 이미지 입력(`img_mode`)도 지원합니다.
-    *   기본 시스템 프롬프트에 현재 날짜, 서버 정보(ID, 이름), 채널 정보(ID, 이름), 사용자 ID, 메시지 ID를 추가하여 Claude에게 컨텍스트를 제공합니다.
-    *   `services/mcp.py`에서 사용 가능한 MCP 툴 목록(`mcp_tools`)을 가져옵니다.
-    *   `services/mcp.set_current_message(message)`를 호출하여 현재 처리 중인 Discord 메시지 객체를 MCP 모듈에 전달합니다. 이는 일부 MCP 툴가 메시지 컨텍스트(예: 서버 ID 자동 추출)를 활용하기 위함입니다.
+    *   기본 시스템 프롬프트에 현재 날짜, 서버 정보(ID, 이름), 채널 정보(ID, 이름), 사용자 ID, 메시지 ID를 추가하여 모델에 컨텍스트를 제공합니다.
+    *   `services/mcp.py`에서 사용 가능한 MCP 툴 목록(`get_openai_mcp_tools`)을 OpenAI Function 형식으로 불러옵니다.
+    *   `services/mcp.set_current_message(message)`로 현재 Discord 메시지를 MCP 모듈에 전달해 서버/채널 정보를 자동 주입합니다.
 
-2.  **Claude API 호출 및 툴 사용 루프**:
-    *   봇은 최대 50번의 상호작용(`current_round`)을 통해 Claude와 대화하며 툴을 사용합니다.
-    *   각 라운드마다 현재까지의 대화 기록(`messages`)과 사용 가능한 MCP 툴 목록(`mcp_tools`)을 포함하여 Claude API(`claude_client.messages.create`)를 호출합니다. 이 호출은 스트리밍 방식이 아닌, 한 번에 완전한 응답을 받는 방식입니다.
-    *   Claude의 응답(`response.content`)에는 텍스트 응답과 툴 사용 요청(`tool_use`)이 포함될 수 있습니다.
-    *   **텍스트 응답 처리**: 응답에 텍스트가 포함되어 있으면, 해당 텍스트(`latest_text_response`)로 Discord의 응답 메시지를 업데이트합니다.
-    *   **툴 사용 처리**:
-        *   응답에 툴 사용 요청(`tool_calls_in_response`)이 있으면, 각 요청된 툴(`tool_call`)에 대해 다음을 수행합니다:
-            *   Discord 메시지를 업데이트하여 사용자에게 어떤 툴을 호출하는지 알립니다.
-            *   `services/claude.execute_tool` 함수를 호출하여 해당 MCP 툴을 실행합니다. `message.id`도 함께 전달되어 툴 실행 시 컨텍스트로 활용될 수 있습니다.
-            *   `generate_image` 툴는 특별히 처리되어, `services.claude.image_generate` 함수를 직접 호출하여 DALL-E 이미지를 생성하고 Discord 메시지에 임베드로 표시합니다.
-            *   다른 MCP 툴들은 `services/mcp.call_tool` 함수를 통해 실행됩니다.
-            *   툴 실행 결과를 Discord 메시지에 업데이트합니다.
-        *   성공적인 툴 실행 결과는 다음 Claude API 호출 시 컨텍스트로 제공하기 위해 `user` 역할의 메시지로 대화 기록(`messages`)에 추가됩니다.
-    *   툴 사용 요청이 없을 경우 루프를 종료합니다.
+2.  **OpenAI 호출 및 툴 사용 루프 (`services/openai_mcp.chat_with_openai_mcp`)**:
+    *   최대 50회 `client.chat.completions.create`를 호출합니다.
+    *   응답에 텍스트가 포함되면 Discord 메시지를 실시간으로 업데이트합니다.
+    *   응답에 `tool_calls`가 있으면:
+        *   사용자에게 실행 중인 툴 이름을 알립니다.
+        *   `services/openai_mcp.execute_tool`을 통해 MCP 툴을 실행합니다. 내부적으로 `services/mcp.call_tool`을 호출하여 실제 Discord 작업을 수행합니다.
+        *   `generate_image` 툴은 `services.openai_mcp.image_generate`로 DALL-E 이미지를 생성하고 Discord에 임베드로 표시합니다.
+        *   툴 실행 결과는 `role: tool` 메시지로 대화 기록에 추가되어 이어지는 OpenAI 호출의 컨텍스트로 사용됩니다.
+    *   툴 호출이 없을 경우 루프를 종료합니다.
 
 3.  **최종 응답 및 오류 처리**:
-    *   툴 사용 루프가 종료되면 (툴 호출이 더 이상 없거나 최대 라운드 도달), 마지막으로 받은 텍스트 응답이 Discord에 표시됩니다.
-    *   만약 텍스트 응답 없이 툴 실행만 완료된 경우, "툴 실행은 완료되었지만 응답이 없습니다."와 같은 메시지를 표시합니다.
-    *   API 호출 또는 툴 실행 중 오류가 발생하면 해당 오류 메시지를 Discord에 표시하고 처리를 중단합니다.
+    *   마지막 텍스트 응답이 Discord에 표시되며, 응답이 비어 있어도 툴 실행 상태를 사용자에게 전달합니다.
+    *   API 호출 또는 툴 실행 중 오류가 발생하면 Discord에 오류 메시지를 표시하고 처리를 중단합니다.
 
 ## 스크린샷
 ![image](https://github.com/user-attachments/assets/b86ab831-cf85-4e0b-a697-c5255451ef95)

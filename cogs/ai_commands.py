@@ -4,7 +4,7 @@ from discord import app_commands
 import json
 import traceback
 from core.config import env
-from services.claude import image_generate
+from services.openai_mcp import image_generate
 
 class AICommands(commands.Cog):
     def __init__(self, bot):
@@ -24,8 +24,10 @@ class AICommands(commands.Cog):
         await interaction.response.defer(thinking=True)
         
         try:
-            # 이미지 생성 함수 호출
-            await image_generate(prompt, size, interaction.followup)
+            # 원본 응답 메시지 객체를 가져옴
+            msg = await interaction.original_response()
+            # 이미지 생성 함수 호출 
+            await image_generate(prompt, size, msg)
         except Exception as err:
             traceback.print_exc()
             await interaction.followup.send(f"이미지 생성 중 오류가 발생했습니다: {str(err)}")
