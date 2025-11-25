@@ -23,8 +23,8 @@ async def search_tool(arguments: dict):
     
     if result:
         # 결과가 너무 길면 자름
-        if len(result) > 4000:
-            result = result[:4000] + "..."
+        if len(result) > 12000:
+            result = result[:12000] + "..."
         
         return [TextContent(
             type="text",
