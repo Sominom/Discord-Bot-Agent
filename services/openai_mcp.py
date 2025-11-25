@@ -12,6 +12,7 @@ from services.prompts import system_prompts, assistant_prompts_start
 from services.database import get_setting
 from services.ai_service import ai_service
 from services.discord_service import discord_service
+from services.music_service import music_service
 
 async def image_generate(prompt: str, size: int, reply_message: discord.Message):
     """DALL·E 이미지를 생성하고 응답 메시지를 업데이트합니다."""
@@ -326,6 +327,13 @@ async def chat_with_openai_mcp(
                     # 2000자 이하면 그냥 업데이트
                     await discord_service.update_message(reply_message, display_text, force=True)
                 
+                # TTS 읽기 (음성 채널에 있는 경우)
+                if message.guild and message.guild.voice_client and message.guild.voice_client.is_connected():
+                    # 코드 블록 등은 읽기에 불편하므로 제거하
+                    # 여기서는 전체 텍스트를 넘기되, 너무 길면 music_service.tts 내부에서 끊길 수도 있음
+                    # music_service.tts는 비동기(run_in_executor)로 동작하므로 블로킹하지 않음
+                    await music_service.tts(message.guild, display_text)
+
                 logger.log("툴 호출 없음, 루프 종료.", logger.INFO)
                 break
 
