@@ -1,5 +1,6 @@
 from mcp_server.registry import tool_registry
 from mcp_server.context import global_context
+from mcp_server.permissions import admin_required
 from mcp.types import TextContent
 import discord
 
@@ -64,6 +65,7 @@ def _find_role(guild, role_id=None, role_name=None):
     return None
 
 @tool_registry.register("add_role", "사용자에게 역할 추가", ADD_ROLE_SCHEMA)
+@admin_required
 async def add_role(arguments: dict):
     cache_guild = global_context.get_guild_from_id(int(arguments["server_id"]))
     
@@ -102,6 +104,7 @@ REMOVE_ROLE_SCHEMA = {
 }
 
 @tool_registry.register("remove_role", "사용자에게서 역할 제거", REMOVE_ROLE_SCHEMA)
+@admin_required
 async def remove_role(arguments: dict):
     cache_guild = global_context.get_guild_from_id(int(arguments["server_id"]))
     
@@ -141,6 +144,7 @@ CREATE_ROLE_SCHEMA = {
 }
 
 @tool_registry.register("create_role", "서버에 새로운 역할을 생성합니다.", CREATE_ROLE_SCHEMA)
+@admin_required
 async def create_role(arguments: dict):
     guild = await global_context.fetch_guild(int(arguments["server_id"]))
     perms_int = int(arguments.get("permissions", 0))
@@ -169,6 +173,7 @@ DELETE_ROLE_SCHEMA = {
 }
 
 @tool_registry.register("delete_role", "서버에서 역할을 삭제합니다.", DELETE_ROLE_SCHEMA)
+@admin_required
 async def delete_role(arguments: dict):
     cache_guild = global_context.get_guild_from_id(int(arguments["server_id"]))
     

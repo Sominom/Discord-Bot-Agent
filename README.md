@@ -13,19 +13,26 @@
 pip install -r requirements.txt
 ```
 
-2. `.env` 파일 설정
-```
-# 필수 설정
-DISCORD_BOT_KEY=your_discord_bot_token
-DISCORD_OWNER_ID=your_discord_id
+2. `config.json` 파일 설정
 
-# API 키 및 모델 설정
-OPENAI_API_KEY=your_openai_api_key
-OPENAI_MODEL=gpt-4.1-mini
-MAX_RESPONSE_TOKENS=2000  # 선택 사항, 기본값 2000
+`config.json.sample` 파일을 `config.json`으로 복사하고 설정을 입력합니다.
 
-# 데이터베이스 설정
-DATABASE_URL=sqlite:///bot.db
+```json
+{
+  "BOT_NAME": "괴상한 봇",
+  "BOT_IDENTITY": "당신은 괴상한 개발자 모임인 괴상한 괴발자 디스코드 채널의 봇입니다. 당신은 괴상한 개발자 모임의 일원이며, 디스코드 서버를 관리하고, 개발자들을 돕습니다.",
+  "BOT_START_MESSAGE": "앗! 안녕하세요! 저는 괴상한 봇입니다! 무엇이든 물어봐주세요! U3U~ <3",
+  "DISCORD_BOT_KEY": "",
+  "OPENAI_API_KEY": "",
+  "OPENAI_MODEL": "gpt-4.1-mini",
+  "GOOGLE_API_KEY": "",
+  "CUSTOM_SEARCH_ENGINE_ID": "",
+  "HISTORY_NUM": 5,
+  "DISCORD_OWNER_IDS": ["your_discord_id1", "your_discord_id2"],
+  "MAX_HISTORY_COUNT": 10,
+  "MAX_RESPONSE_TOKENS": 2000,
+  "VERTEX_API_KEY": ""
+}
 ```
 
 3. 봇 실행

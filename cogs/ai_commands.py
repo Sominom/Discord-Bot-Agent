@@ -24,8 +24,10 @@ class AICommands(commands.Cog):
         await interaction.response.defer(thinking=True)
         
         try:
-            # 이미지 생성 함수 호출
-            await image_generate(prompt, size, interaction.followup)
+            # 원본 응답 메시지 객체를 가져옴
+            msg = await interaction.original_response()
+            # 이미지 생성 함수 호출 
+            await image_generate(prompt, size, msg)
         except Exception as err:
             traceback.print_exc()
             await interaction.followup.send(f"이미지 생성 중 오류가 발생했습니다: {str(err)}")

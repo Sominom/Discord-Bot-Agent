@@ -1,5 +1,6 @@
 from mcp_server.registry import tool_registry
 from mcp_server.context import global_context
+from mcp_server.permissions import admin_required
 from mcp.types import TextContent
 import discord
 
@@ -44,6 +45,7 @@ KICK_MEMBER_SCHEMA = {
 }
 
 @tool_registry.register("kick_member", "서버에서 멤버를 추방합니다.", KICK_MEMBER_SCHEMA)
+@admin_required
 async def kick_member(arguments: dict):
     guild = await global_context.fetch_guild(int(arguments["server_id"]))
     member = await guild.fetch_member(int(arguments["user_id"]))
@@ -63,6 +65,7 @@ BAN_MEMBER_SCHEMA = {
 }
 
 @tool_registry.register("ban_member", "서버에서 멤버를 차단합니다.", BAN_MEMBER_SCHEMA)
+@admin_required
 async def ban_member(arguments: dict):
     guild = await global_context.fetch_guild(int(arguments["server_id"]))
     # fetch_user 사용: 서버에 없어도 ID로 차단 가능
@@ -86,6 +89,7 @@ DISCONNECT_MEMBER_SCHEMA = {
 }
 
 @tool_registry.register("disconnect_member", "음성 채널에서 멤버 연결 끊기", DISCONNECT_MEMBER_SCHEMA)
+@admin_required
 async def disconnect_member(arguments: dict):
     guild = await global_context.fetch_guild(int(arguments["server_id"]))
     member = await guild.fetch_member(int(arguments["user_id"]))
@@ -114,6 +118,7 @@ CHANGE_NICKNAME_SCHEMA = {
 }
 
 @tool_registry.register("change_nickname", "서버 내 사용자의 닉네임을 변경합니다.", CHANGE_NICKNAME_SCHEMA)
+@admin_required
 async def change_nickname(arguments: dict):
     guild = await global_context.fetch_guild(int(arguments["server_id"]))
     member = await guild.fetch_member(int(arguments["user_id"]))

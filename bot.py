@@ -22,11 +22,11 @@ class InteractiveGPTBot(commands.Bot):
         self.mcp_server = MCPServer()
 
         # 봇 소유자 ID 설정
-        self.owner_id = env.DISCORD_OWNER_ID
-        if self.owner_id:
-            self.logger.log(f'봇 소유자 ID 설정: {self.owner_id}')
+        self.owner_ids = env.DISCORD_OWNER_IDS
+        if self.owner_ids:
+            self.logger.log(f'봇 소유자 ID 설정: {self.owner_ids}')
         else:
-            self.logger.log('DISCORD_OWNER_ID가 설정되지 않았습니다.', self.logger.WARNING)
+            self.logger.log('DISCORD_OWNER_IDS가 설정되지 않았습니다.', self.logger.WARNING)
 
     async def setup_hook(self):
         # 확장 기능(Cogs) 로드

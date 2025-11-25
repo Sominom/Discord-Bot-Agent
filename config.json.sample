@@ -1,11 +1,14 @@
 {
+  "BOT_NAME": "괴상한 봇",
+  "BOT_IDENTITY": "당신은 괴상한 개발자 모임인 괴상한 괴발자 디스코드 채널의 봇입니다. 당신은 괴상한 개발자 모임의 일원이며, 디스코드 서버를 관리하고, 개발자들을 돕습니다.",
+  "BOT_START_MESSAGE": "앗! 안녕하세요! 저는 괴상한 봇입니다! 무엇이든 물어봐주세요! U3U~ <3",
   "DISCORD_BOT_KEY": "",
   "OPENAI_API_KEY": "",
   "OPENAI_MODEL": "gpt-4.1-mini",
   "GOOGLE_API_KEY": "",
   "CUSTOM_SEARCH_ENGINE_ID": "",
   "HISTORY_NUM": 5,
-  "DISCORD_OWNER_ID": "",
-  "MAX_HISTORY_COUNT": 10
+  "DISCORD_OWNER_IDS": ["", ""],
+  "MAX_HISTORY_COUNT": 10,
   "MAX_RESPONSE_TOKENS": 2000
 }

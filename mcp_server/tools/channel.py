@@ -1,5 +1,6 @@
 from mcp_server.registry import tool_registry
 from mcp_server.context import global_context
+from mcp_server.permissions import admin_required
 from mcp.types import TextContent
 import discord
 from services.database import add_chat_channel as db_add_chat_channel, delete_chat_channel as db_delete_chat_channel
@@ -13,6 +14,7 @@ ADD_CHAT_CHANNEL_SCHEMA = {
 }
 
 @tool_registry.register("add_chat_channel", "봇이 대화에 참여할 채널로 추가 (이 채널의 메시지를 읽고 반응하게 됨)", ADD_CHAT_CHANNEL_SCHEMA)
+@admin_required
 async def add_chat_channel(arguments: dict):
     channel_id = arguments.get("channel_id")
     
@@ -42,6 +44,7 @@ REMOVE_CHAT_CHANNEL_SCHEMA = {
 }
 
 @tool_registry.register("remove_chat_channel", "봇 대화 채널 목록에서 제거 (더 이상 이 채널에서 자동 반응하지 않음)", REMOVE_CHAT_CHANNEL_SCHEMA)
+@admin_required
 async def remove_chat_channel(arguments: dict):
     channel_id = arguments.get("channel_id")
     
@@ -75,6 +78,7 @@ CREATE_TEXT_CHANNEL_SCHEMA = {
 }
 
 @tool_registry.register("create_text_channel", "새 텍스트 채널 생성", CREATE_TEXT_CHANNEL_SCHEMA)
+@admin_required
 async def create_text_channel(arguments: dict):
     server_id = int(arguments["server_id"])
     guild = await global_context.fetch_guild(server_id)
@@ -114,6 +118,7 @@ CREATE_VOICE_CHANNEL_SCHEMA = {
 }
 
 @tool_registry.register("create_voice_channel", "새 음성 채널 생성", CREATE_VOICE_CHANNEL_SCHEMA)
+@admin_required
 async def create_voice_channel(arguments: dict):
     server_id = int(arguments["server_id"])
     guild = await global_context.fetch_guild(server_id)
@@ -152,6 +157,7 @@ CREATE_CATEGORY_SCHEMA = {
 }
 
 @tool_registry.register("create_category", "새 카테고리 생성", CREATE_CATEGORY_SCHEMA)
+@admin_required
 async def create_category(arguments: dict):
     guild = await global_context.fetch_guild(int(arguments["server_id"]))
     category = await guild.create_category(
@@ -175,6 +181,7 @@ DELETE_CATEGORY_SCHEMA = {
 }
 
 @tool_registry.register("delete_category", "카테고리 삭제 (포함된 채널은 삭제되지 않음)", DELETE_CATEGORY_SCHEMA)
+@admin_required
 async def delete_category(arguments: dict):
     cache_guild = global_context.get_guild_from_id(int(arguments["server_id"]))
     
@@ -206,6 +213,7 @@ MOVE_CHANNEL_SCHEMA = {
 }
 
 @tool_registry.register("move_channel", "채널을 다른 카테고리로 이동", MOVE_CHANNEL_SCHEMA)
+@admin_required
 async def move_channel(arguments: dict):
     cache_guild = global_context.get_guild_from_id(int(arguments["server_id"]))
     
@@ -253,6 +261,7 @@ RENAME_CHANNEL_SCHEMA = {
 }
 
 @tool_registry.register("rename_channel", "채널 이름 변경", RENAME_CHANNEL_SCHEMA)
+@admin_required
 async def rename_channel(arguments: dict):
     channel = await global_context.fetch_channel(int(arguments["channel_id"]))
     old_name = channel.name
@@ -274,6 +283,7 @@ DELETE_CHANNEL_SCHEMA = {
 }
 
 @tool_registry.register("delete_channel", "채널 삭제", DELETE_CHANNEL_SCHEMA)
+@admin_required
 async def delete_channel(arguments: dict):
     channel = await global_context.fetch_channel(int(arguments["channel_id"]))
     await channel.delete(reason=arguments.get("reason", "MCP를 통해 삭제된 채널"))

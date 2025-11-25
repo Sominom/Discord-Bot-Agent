@@ -1,5 +1,6 @@
 from mcp_server.registry import tool_registry
 from mcp_server.context import global_context
+from mcp_server.permissions import admin_required
 from mcp.types import TextContent
 import discord
 from datetime import datetime, timedelta
@@ -129,6 +130,7 @@ MODERATE_MESSAGE_SCHEMA = {
 }
 
 @tool_registry.register("moderate_message", "메시지 삭제 및 선택적으로 사용자 타임아웃", MODERATE_MESSAGE_SCHEMA)
+@admin_required
 async def moderate_message(arguments: dict):
     channel = await global_context.fetch_channel(int(arguments["channel_id"]))
     message = await channel.fetch_message(int(arguments["message_id"]))
