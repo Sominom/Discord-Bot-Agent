@@ -172,3 +172,6 @@ bot.log
 
 .cursor
 *_backup.py
+
+data.json
+downloads/
