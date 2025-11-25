@@ -198,6 +198,10 @@ async def search_channel(arguments: dict):
                 channel_type_emoji = "🔊"
             elif isinstance(channel, discord.CategoryChannel):
                 channel_type_emoji = "📂"
+            elif isinstance(channel, discord.ForumChannel):
+                channel_type_emoji = "💬"
+            elif isinstance(channel, discord.StageChannel):
+                channel_type_emoji = "🎙️"
                 
             found_channels.append({
                 "id": str(channel.id),
