@@ -288,3 +288,91 @@ async def delete_channel(arguments: dict):
     channel = await global_context.fetch_channel(int(arguments["channel_id"]))
     await channel.delete(reason=arguments.get("reason", "MCP를 통해 삭제된 채널"))
     return [TextContent(type="text", text="채널 삭제 완료")]
+
+CREATE_THREAD_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "channel_id": {"type": "string", "description": "스레드를 생성할 텍스트 채널 또는 포럼 채널 ID"},
+        "name": {"type": "string", "description": "스레드 이름"},
+        "content": {"type": "string", "description": "스레드 시작 메시지 내용 (포럼 채널인 경우 필수)"},
+        "message_id": {"type": "string", "description": "스레드를 시작할 메시지 ID (선택사항, 없으면 비공개 스레드나 채널 스레드 생성)"},
+        "auto_archive_duration": {"type": "integer", "description": "자동 보관 시간(분) - 60, 1440, 4320, 10080 중 하나 (기본값 1440)"},
+        "type": {"type": "string", "description": "스레드 유형 (public/private/news, 기본값 public)"}
+    },
+    "required": ["channel_id", "name"]
+}
+
+@tool_registry.register("create_thread", "새 스레드 생성", CREATE_THREAD_SCHEMA)
+@admin_required
+async def create_thread(arguments: dict):
+    try:
+        channel_id_val = arguments.get("channel_id")
+        if not channel_id_val:
+             return [TextContent(type="text", text="채널 ID가 필요합니다.")]
+        channel = await global_context.fetch_channel(int(channel_id_val))
+    except Exception as e:
+        return [TextContent(type="text", text=f"채널을 찾을 수 없습니다: {str(e)}")]
+    
+    if not isinstance(channel, discord.TextChannel) and not isinstance(channel, discord.ForumChannel):
+         return [TextContent(type="text", text="스레드는 텍스트 채널이나 포럼 채널에서만 생성할 수 있습니다.")]
+         
+    name = arguments["name"]
+    content = arguments.get("content")
+    auto_archive_duration = int(arguments.get("auto_archive_duration", 1440))
+    
+    # discord.py create_thread 인자 처리
+    # message가 있으면 해당 메시지에서 스레드 시작
+    message = None
+    if "message_id" in arguments:
+        try:
+            message = await channel.fetch_message(int(arguments["message_id"]))
+        except:
+            pass
+            
+    thread_type = discord.ChannelType.public_thread
+    if arguments.get("type") == "private":
+        thread_type = discord.ChannelType.private_thread
+    elif arguments.get("type") == "news":
+        thread_type = discord.ChannelType.news_thread
+
+    try:
+        if isinstance(channel, discord.ForumChannel):
+            if not content:
+                return [TextContent(type="text", text="포럼 채널에 스레드를 생성하려면 'content' (내용)가 필수입니다.")]
+            
+            thread_with_message = await channel.create_thread(
+                name=name,
+                content=content,
+                auto_archive_duration=auto_archive_duration,
+                reason="MCP를 통해 생성된 포럼 게시물"
+            )
+            thread = thread_with_message.thread
+            
+        elif message:
+            thread = await message.create_thread(
+                name=name,
+                auto_archive_duration=auto_archive_duration,
+                reason="MCP를 통해 생성된 스레드"
+            )
+        else:
+            # 채널에서 바로 생성 (type 인자 필요)
+            thread = await channel.create_thread(
+                name=name,
+                auto_archive_duration=auto_archive_duration,
+                type=thread_type,
+                reason="MCP를 통해 생성된 스레드"
+            )
+            
+            # 만약 content가 있고 일반 텍스트 채널 스레드라면 첫 메시지로 전송
+            if content:
+                await thread.send(content)
+            
+        return [TextContent(
+            type="text",
+            text=f"스레드 🧵 {thread.name} (ID: {thread.id}) 생성 완료"
+        )]
+    except discord.Forbidden:
+         return [TextContent(type="text", text="스레드 생성 권한이 없습니다.")]
+    except discord.HTTPException as e:
+         return [TextContent(type="text", text=f"스레드 생성 실패: {str(e)}")]
+
